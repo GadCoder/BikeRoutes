@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Creator"
+  short_description: "Draft PRs in a fixed 4-section template"
+  default_prompt: "Create a pull request description using Summary, Why, What Changed, and Considerations."
