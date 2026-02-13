@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from geoalchemy2 import Geometry
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
@@ -29,8 +30,8 @@ class Marker(Base):
 
     geometry: Mapped[object] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
 
-    label: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    label: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     icon_type: Mapped[str] = mapped_column(String(50), nullable=False, default="default", server_default="default")
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
@@ -42,4 +43,3 @@ class Marker(Base):
 
 
 from app.models.route import Route  # noqa: E402  (circular relationship)
-
