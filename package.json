@@ -1,0 +1,16 @@
+{
+  "name": "bikeroutes",
+  "private": true,
+  "workspaces": [
+    "frontend/web",
+    "frontend/mobile",
+    "frontend/shared"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace frontend/web run dev",
+    "dev:mobile": "npm --workspace frontend/mobile run start",
+    "lint:web": "npm --workspace frontend/web run lint",
+    "typecheck:web": "npm --workspace frontend/web run typecheck"
+  }
+}
+

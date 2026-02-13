@@ -10,10 +10,10 @@ All agent PRs MUST use the `pr-creator` skill template for the PR body:
 
 These tasks unblock all other tracks and should be done first.
 
-- [ ] 1.1 Create baseline repository structure for `frontend/web`, `frontend/mobile`, `frontend/shared`, `backend`, `infra`, and `maps`.
-- [ ] 1.2 Initialize React web app (Vite + TypeScript), FastAPI backend skeleton, and Expo mobile app shell (branded as "BikeRoutes", including the reference splash screen: logo badge + teal route stroke, subtitle "URBAN ROUTE EDITOR", and "INITIALIZING MAPS..." progress indicator).
-- [ ] 1.3 Add Docker Compose services for PostgreSQL/PostGIS, backend API, and tile serving dependencies.
-- [ ] 1.4 Add shared environment templates (`.env.example`) and local startup scripts for web, backend, and mobile.
+- [x] 1.1 Create baseline repository structure for `frontend/web`, `frontend/mobile`, `frontend/shared`, `backend`, `infra`, and `maps`.
+- [x] 1.2 Initialize React web app (Vite + TypeScript), FastAPI backend skeleton, and Expo mobile app shell (branded as "BikeRoutes", including the reference splash screen: logo badge + teal route stroke, subtitle "URBAN ROUTE EDITOR", and "INITIALIZING MAPS..." progress indicator).
+- [x] 1.3 Add Docker Compose services for PostgreSQL/PostGIS, backend API, and tile serving dependencies.
+- [x] 1.4 Add shared environment templates (`.env.example`) and local startup scripts for web, backend, and mobile.
 
 ## 2. MVP Track B: Backend Auth
 
