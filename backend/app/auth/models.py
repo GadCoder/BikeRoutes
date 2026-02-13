@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from typing import Optional
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -46,14 +48,13 @@ class RefreshToken(Base):
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    revoked_reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_reason: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    replaced_by_token_id: Mapped[int | None] = mapped_column(
+    replaced_by_token_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("refresh_tokens.id", ondelete="SET NULL"), nullable=True
     )
 
     __table_args__ = (
         Index("ix_refresh_tokens_user_id_revoked_at", "user_id", "revoked_at"),
     )
-
