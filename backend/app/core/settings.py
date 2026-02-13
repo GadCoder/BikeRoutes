@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    database_url: str = "postgresql+asyncpg://bikeroutes:bikeroutes@localhost:5432/bikeroutes"
+    database_url: str = "postgresql+psycopg://bikeroutes:bikeroutes@localhost:5432/bikeroutes"
     cors_origins: str = "http://localhost:5173"
     jwt_secret: str = "dev-insecure-change-me"
     access_token_ttl_minutes: int = 15
