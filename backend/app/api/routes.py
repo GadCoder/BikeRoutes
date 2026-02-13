@@ -265,7 +265,7 @@ async def update_route(
     return _route_feature(route, geometry, markers)
 
 
-@router.delete("/{route_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
+@router.delete("/{route_id}")
 async def delete_route(
     route_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -277,6 +277,7 @@ async def delete_route(
     _require_owner(route, user)
     await session.delete(route)
     await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/{route_id}/markers", response_model=list[MarkerFeature])
