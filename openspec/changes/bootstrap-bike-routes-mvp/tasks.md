@@ -14,6 +14,7 @@ These tasks unblock all other tracks and should be done first.
 - [x] 1.2 Initialize React web app (Vite + TypeScript), FastAPI backend skeleton, and Expo mobile app shell (branded as "BikeRoutes", including the reference splash screen: logo badge + teal route stroke, subtitle "URBAN ROUTE EDITOR", and "INITIALIZING MAPS..." progress indicator).
 - [x] 1.3 Add Docker Compose services for PostgreSQL/PostGIS, backend API, and tile serving dependencies.
 - [x] 1.4 Add shared environment templates (`.env.example`) and local startup scripts for web, backend, and mobile.
+- [x] 1.5 Standardize backend runtime on Python **3.13** for local dev/QA stability (see `docs/DEV.md`).
 
 ## 2. MVP Track B: Backend Auth
 
@@ -39,6 +40,8 @@ Routes/markers APIs can be built in parallel with auth, but final ownership/visi
 Mobile UI can start immediately with local/mocked data. API wiring requires `2.2-2.3` and `3.2-3.4`. MVP must not include Explore/Stats screens.
 
 - [ ] 2.5 Implement frontend and mobile auth flows (session storage, login/register screens, authenticated bootstrap) matching the mobile Sign In design: Google-only social option (no Apple; hide Google button if not configured).
+  - [x] 2.5a UI auth flow implemented with mocked session (Sign In / Register / Authed bootstrap); Google hidden when not configured; dead controls removed.
+  - [ ] 2.5b Persist session (AsyncStorage/SecureStore) + wire to backend auth endpoints.
 - [ ] 6.1 Integrate MapLibre React Native and mobile map screen with shared geometry contracts, matching the route creation UI: step-based bottom sheet (Step 1 of 3) with undo/redo, Clear, distance/vertices metrics, and Next CTA.
 - [ ] 6.2 Implement mobile route list/detail views with local route cache persistence, matching the reference UI:
   - My Routes screen: title, search, + create button, card list with distance/markers/recency and thumbnail, delete icon with confirm, bottom nav (MVP must not include Explore/Stats).
