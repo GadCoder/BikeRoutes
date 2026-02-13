@@ -66,7 +66,6 @@ export function SignInScreen(props: {
             placeholder="••••••••"
             secureTextEntry
             textContentType="password"
-            helperRight={{ label: "Forgot Password?", onPress: () => {} }}
           />
 
           <View style={styles.cta}>
@@ -160,4 +159,3 @@ const styles = StyleSheet.create({
     fontWeight: tokens.font.weight.bold,
   },
 });
-
