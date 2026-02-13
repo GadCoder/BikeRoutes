@@ -7,7 +7,7 @@ export function TextField(props: {
   onChangeText: (v: string) => void;
   placeholder?: string;
   secureTextEntry?: boolean;
-  helperRight?: { label: string; onPress?: () => void };
+  helperRight?: { label: string; onPress: () => void };
   multiline?: boolean;
   numberOfLines?: number;
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
@@ -83,4 +83,3 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
 });
-
