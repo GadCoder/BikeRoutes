@@ -16,13 +16,14 @@ async def get_optional_current_user(
     Temporary auth contract for Track C implementation.
 
     Agent B will implement real JWT auth and should set a principal on request state.
-    Until then, we support an opt-in debug header in non-production environments.
+    Until then, we support an opt-in debug header in *development* only.
     """
     principal = getattr(request.state, "user", None)
     if isinstance(principal, UserPrincipal):
         return principal
 
-    if settings.app_env != "production" and x_debug_user_id:
+    # Prevent accidental impersonation in staging-like environments.
+    if settings.app_env == "development" and x_debug_user_id:
         try:
             return UserPrincipal(id=uuid.UUID(x_debug_user_id))
         except ValueError as e:
@@ -42,4 +43,3 @@ async def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     return user
-
