@@ -13,8 +13,8 @@
       "googleAuthEnabled": false,
       "googleOauthClientId": ""
     },
-    "android": {
-      "package": "com.anonymous.bikeroutes"
-    }
+    "plugins": [
+      "expo-asset"
+    ]
   }
 }
