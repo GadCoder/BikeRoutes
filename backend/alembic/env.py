@@ -12,9 +12,12 @@ from sqlalchemy import engine_from_config, pool
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_DIR))
 
-from app.auth.models import Base  # noqa: E402
 from app.core.settings import settings  # noqa: E402
+from app.db.base import Base  # noqa: E402
 
+# Import models so metadata is populated
+import app.models  # noqa: F401,E402
+import app.auth.models  # noqa: F401,E402
 
 config = context.config
 
@@ -75,4 +78,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
