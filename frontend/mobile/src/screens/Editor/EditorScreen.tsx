@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
-import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
-import type { GeoJSONLineStringGeometry } from "../../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
+import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { createMarker, createRoute, getRoute, updateMarker, updateRoute, type RouteFeature } from "../../api/routes";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import { MapCanvas } from "../../components/map/MapCanvas";
+import { TextField } from "../../components/TextField";
+import { MapCanvas, type MapMarker } from "../../components/map/MapCanvas";
 import {
   appendVertex,
   emptyLineString,
@@ -15,12 +18,8 @@ import {
   historyUndo,
   type HistoryState,
 } from "../../editor/lineStringHistory";
-import {
-  formatDistanceKm,
-  formatVertices,
-  lineStringDistanceMeters,
-  lineStringVertexCount,
-} from "../../editor/lineStringMetrics";
+import { formatDistanceKm, lineStringDistanceMeters } from "../../editor/lineStringMetrics";
+import { upsertCachedRoute } from "../../state/routesCache";
 import { tokens } from "../../theme/tokens";
 
 type Step = 1 | 2 | 3;
@@ -31,9 +30,41 @@ function stepTitle(step: Step): string {
   return "Review";
 }
 
-export function EditorScreen(props: { onExit: () => void }) {
+type DraftMarker = {
+  id: string; // local id
+  backendId?: string;
+  coordinate: GeoJSONPosition;
+  label: string;
+  iconType: string;
+  description: string;
+  orderIndex: number;
+};
+
+function randomId(): string {
+  return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function EditorScreen(props: {
+  accessToken?: string;
+  bottomInset: number;
+  routeId?: string | null;
+  onExitEditor: () => void;
+  onSaved: (routeId: string) => void;
+}) {
   const [step, setStep] = useState<Step>(1);
   const [hist, setHist] = useState<HistoryState>(() => historyInit());
+  const [draftMarkers, setDraftMarkers] = useState<DraftMarker[]>([]);
+
+  const [saveVisible, setSaveVisible] = useState(false);
+  const [routeName, setRouteName] = useState("");
+  const [routeNotes, setRouteNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const [addMarkerVisible, setAddMarkerVisible] = useState(false);
+  const [pendingMarkerCoord, setPendingMarkerCoord] = useState<GeoJSONPosition | null>(null);
+  const [markerLabel, setMarkerLabel] = useState("");
+  const [markerIcon, setMarkerIcon] = useState<"cafe" | "viewpoint" | "repair" | "water">("cafe");
+  const [markerDesc, setMarkerDesc] = useState("");
 
   const geometry: GeoJSONLineStringGeometry = hist.present;
 
@@ -42,18 +73,80 @@ export function EditorScreen(props: { onExit: () => void }) {
   const canUndo = historyCanUndo(hist);
   const canRedo = historyCanRedo(hist);
 
-  const allowMapTaps = step === 1;
+  const allowMapTaps = step === 1 || step === 2;
   const canProceed = vertices >= 2;
+
+  const mapMarkers: MapMarker[] = useMemo(() => {
+    return draftMarkers.map((m) => ({ id: m.id, coordinate: m.coordinate, iconType: m.iconType, label: m.label }));
+  }, [draftMarkers]);
+
+  useEffect(() => {
+    if (!props.routeId) {
+      setHist(historyInit());
+      setDraftMarkers([]);
+      setRouteName("");
+      setRouteNotes("");
+      setStep(1);
+      return;
+    }
+
+    let mounted = true;
+    (async () => {
+      try {
+        const r = await getRoute({ accessToken: props.accessToken, routeId: props.routeId! });
+        if (!mounted) return;
+        if (isGeoJSONLineStringGeometry(r.geometry)) setHist(historyInit(r.geometry));
+        setRouteName(String(r.properties.title ?? ""));
+        setRouteNotes(String(r.properties.description ?? ""));
+        const markers = (r.properties.markers ?? []) as any[];
+        setDraftMarkers(
+          markers
+            .map((mf, idx) => {
+              const coord = (mf?.geometry?.coordinates ?? null) as GeoJSONPosition | null;
+              if (!coord) return null;
+              return {
+                id: randomId(),
+                backendId: String(mf.id),
+                coordinate: coord,
+                label: String(mf?.properties?.label ?? ""),
+                iconType: String(mf?.properties?.icon_type ?? "default"),
+                description: String(mf?.properties?.description ?? ""),
+                orderIndex: typeof mf?.properties?.order_index === "number" ? mf.properties.order_index : idx,
+              } as DraftMarker;
+            })
+            .filter(Boolean) as DraftMarker[],
+        );
+        setStep(1);
+      } catch {
+        // If fetch fails, leave current draft as-is.
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [props.routeId, props.accessToken]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.root}>
         <MapCanvas
           geometry={geometry}
+          markers={mapMarkers}
           controlsEnabled={allowMapTaps}
           onPressCoordinate={(pos) => {
             if (!allowMapTaps) return;
-            setHist((h) => historyPush(h, appendVertex(h.present, pos)));
+            if (step === 1) {
+              setHist((h) => historyPush(h, appendVertex(h.present, pos)));
+              return;
+            }
+            if (step === 2) {
+              setPendingMarkerCoord(pos);
+              setMarkerLabel("");
+              setMarkerIcon("cafe");
+              setMarkerDesc("");
+              setAddMarkerVisible(true);
+            }
           }}
         />
 
@@ -61,10 +154,14 @@ export function EditorScreen(props: { onExit: () => void }) {
           <IconButton
             label="Back"
             onPress={() => {
-              Alert.alert("Exit editor?", "This will sign you out for now.", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Exit", style: "destructive", onPress: props.onExit },
-              ]);
+              if (vertices > 0 || draftMarkers.length > 0 || step !== 1) {
+                Alert.alert("Exit editor?", "Discard your current draft changes?", [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Exit", style: "destructive", onPress: props.onExitEditor },
+                ]);
+                return;
+              }
+              props.onExitEditor();
             }}
             icon={<Text style={styles.iconText}>{"\u2039"}</Text>}
           />
@@ -84,7 +181,7 @@ export function EditorScreen(props: { onExit: () => void }) {
           />
         </View>
 
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { bottom: tokens.space.lg + props.bottomInset }]}>
           <View style={styles.sheetTopRow}>
             <View style={styles.sheetLeft}>
               <IconButton
@@ -110,7 +207,10 @@ export function EditorScreen(props: { onExit: () => void }) {
             <View style={styles.sheetRight}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => setHist((h) => historyPush(h, emptyLineString()))}
+                onPress={() => {
+                  setHist((h) => historyPush(h, emptyLineString()));
+                  setDraftMarkers([]);
+                }}
                 style={({ pressed }) => [styles.clearBtn, pressed && styles.clearBtnPressed]}
               >
                 <Text style={styles.clearText}>Clear</Text>
@@ -119,25 +219,21 @@ export function EditorScreen(props: { onExit: () => void }) {
           </View>
 
           {step === 1 ? (
-            <View style={styles.hintRow}>
-              <View style={styles.hintIcon}>
-                <Text style={styles.hintIconText}>i</Text>
-              </View>
-              <Text style={styles.hintText}>Tap map to add points</Text>
-            </View>
+            <HintRow text="Tap map to add points" />
+          ) : step === 2 ? (
+            <HintRow text="Tap map to add markers" />
           ) : (
-            <View style={styles.hintRow}>
-              <View style={styles.hintIcon}>
-                <Text style={styles.hintIconText}>i</Text>
-              </View>
-              <Text style={styles.hintText}>This step is scaffolded for MVP UI parity.</Text>
-            </View>
+            <HintRow text="Review and save your route." />
           )}
 
           <View style={styles.metricsRow}>
             <MetricCard label="DISTANCE" value={formatDistanceKm(distanceMeters)} />
             <View style={{ width: 12 }} />
-            <MetricCard label="VERTICES" value={formatVertices(lineStringVertexCount(geometry))} />
+            {step === 1 ? (
+              <MetricCard label="VERTICES" value={`${vertices} pts`} />
+            ) : (
+              <MetricCard label="MARKERS" value={`${draftMarkers.length} placed`} />
+            )}
           </View>
 
           <Button
@@ -147,7 +243,7 @@ export function EditorScreen(props: { onExit: () => void }) {
             onPress={() => {
               if (step === 1 && !canProceed) return;
               if (step === 3) {
-                Alert.alert("Not implemented", "Save flow will be implemented in task 6.2.");
+                setSaveVisible(true);
                 return;
               }
               setStep((s) => (s === 1 ? 2 : 3));
@@ -155,8 +251,162 @@ export function EditorScreen(props: { onExit: () => void }) {
             testID="editor_next"
           />
         </View>
+
+        <Modal animationType="slide" transparent visible={saveVisible} onRequestClose={() => setSaveVisible(false)}>
+          <View style={styles.modalBackdrop}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => (saving ? null : setSaveVisible(false))} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalTop}>
+                <Text style={styles.modalTitle}>Save Your Route</Text>
+                <IconButton
+                  label="Close"
+                  disabled={saving}
+                  onPress={() => setSaveVisible(false)}
+                  icon={<Text style={styles.close}>×</Text>}
+                />
+              </View>
+
+              <TextField
+                label="Route Name"
+                value={routeName}
+                onChangeText={setRouteName}
+                placeholder="e.g. Sunday Loop"
+                autoCapitalize="words"
+              />
+              <TextField
+                label="Notes (Optional)"
+                value={routeNotes}
+                onChangeText={setRouteNotes}
+                placeholder="Add notes..."
+                multiline
+                numberOfLines={4}
+                autoCapitalize="sentences"
+              />
+
+              <View style={styles.summaryRow}>
+                <SummaryCard label="DISTANCE" value={formatDistanceKm(distanceMeters)} />
+                <View style={{ width: 12 }} />
+                <SummaryCard label="MARKERS" value={`${draftMarkers.length} placed`} />
+              </View>
+
+              <Button
+                label={saving ? "Saving..." : "Save to My Routes"}
+                disabled={saving || routeName.trim().length === 0 || vertices < 2}
+                leftIcon={<Text style={styles.check}>✓</Text>}
+                onPress={async () => {
+                  const title = routeName.trim();
+                  if (!title) return;
+                  setSaving(true);
+                  try {
+                    const saved = await saveRouteToBackend({
+                      accessToken: props.accessToken,
+                      routeId: props.routeId ?? null,
+                      title,
+                      description: routeNotes.trim() || undefined,
+                      geometry,
+                      markers: draftMarkers,
+                    });
+                    await upsertCachedRoute(saved, { updatedAt: new Date().toISOString() });
+                    setSaveVisible(false);
+                    props.onSaved(saved.id);
+                  } catch (e) {
+                    Alert.alert("Save failed", "Could not save to the backend. Check your session and API URL.");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+          animationType="slide"
+          transparent
+          visible={addMarkerVisible}
+          onRequestClose={() => setAddMarkerVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setAddMarkerVisible(false)} />
+            <View style={styles.modalSheet}>
+              <View style={styles.modalTop}>
+                <View>
+                  <Text style={styles.modalTitle}>Add Marker</Text>
+                  <Text style={styles.modalSubtitle}>Specify details for this location</Text>
+                </View>
+                <IconButton label="Close" onPress={() => setAddMarkerVisible(false)} icon={<Text style={styles.close}>×</Text>} />
+              </View>
+
+              <TextField
+                label="MARKER LABEL"
+                value={markerLabel}
+                onChangeText={setMarkerLabel}
+                placeholder="e.g. Sunny Rest Stop"
+                autoCapitalize="words"
+              />
+
+              <View style={styles.iconRow}>
+                <Text style={styles.iconRowTitle}>SELECT ICON</Text>
+                <View style={{ height: 10 }} />
+                <View style={styles.iconChoices}>
+                  <IconChoice label="CAFE" selected={markerIcon === "cafe"} onPress={() => setMarkerIcon("cafe")} />
+                  <IconChoice
+                    label="VIEWPOINT"
+                    selected={markerIcon === "viewpoint"}
+                    onPress={() => setMarkerIcon("viewpoint")}
+                  />
+                  <IconChoice label="REPAIR" selected={markerIcon === "repair"} onPress={() => setMarkerIcon("repair")} />
+                  <IconChoice label="WATER" selected={markerIcon === "water"} onPress={() => setMarkerIcon("water")} />
+                </View>
+              </View>
+
+              <TextField
+                label="DESCRIPTION (OPTIONAL)"
+                value={markerDesc}
+                onChangeText={setMarkerDesc}
+                placeholder="Add notes..."
+                multiline
+                numberOfLines={3}
+                autoCapitalize="sentences"
+              />
+
+              <Button
+                label="Add Marker"
+                disabled={markerLabel.trim().length === 0 || !pendingMarkerCoord}
+                onPress={() => {
+                  const coord = pendingMarkerCoord;
+                  if (!coord) return;
+                  const next: DraftMarker = {
+                    id: randomId(),
+                    coordinate: coord,
+                    label: markerLabel.trim(),
+                    iconType: markerIcon,
+                    description: markerDesc.trim(),
+                    orderIndex: draftMarkers.length,
+                  };
+                  setDraftMarkers((m) => [...m, next]);
+                  setAddMarkerVisible(false);
+                }}
+              />
+              <Pressable accessibilityRole="button" onPress={() => setAddMarkerVisible(false)} style={styles.cancelBtn}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
+  );
+}
+
+function HintRow(props: { text: string }) {
+  return (
+    <View style={styles.hintRow}>
+      <View style={styles.hintIcon}>
+        <Text style={styles.hintIconText}>i</Text>
+      </View>
+      <Text style={styles.hintText}>{props.text}</Text>
+    </View>
   );
 }
 
@@ -167,6 +417,88 @@ function MetricCard(props: { label: string; value: string }) {
       <Text style={styles.metricValue}>{props.value}</Text>
     </View>
   );
+}
+
+function SummaryCard(props: { label: string; value: string }) {
+  return (
+    <View style={styles.summaryCard}>
+      <Text style={styles.metricLabel}>{props.label}</Text>
+      <Text style={styles.metricValue}>{props.value}</Text>
+    </View>
+  );
+}
+
+function IconChoice(props: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={props.onPress}
+      style={({ pressed }) => [
+        styles.iconChoice,
+        props.selected && styles.iconChoiceSelected,
+        pressed && !props.selected && styles.iconChoicePressed,
+      ]}
+    >
+      <Text style={[styles.iconChoiceGlyph, props.selected && styles.iconChoiceGlyphSelected]}>{props.label.slice(0, 1)}</Text>
+      <Text style={[styles.iconChoiceLabel, props.selected && styles.iconChoiceLabelSelected]}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+async function saveRouteToBackend(args: {
+  accessToken?: string;
+  routeId: string | null;
+  title: string;
+  description?: string;
+  geometry: GeoJSONLineStringGeometry;
+  markers: DraftMarker[];
+}): Promise<RouteFeature> {
+  if (!args.accessToken) throw new Error("No access token");
+
+  const route =
+    args.routeId == null
+      ? await createRoute({
+          accessToken: args.accessToken,
+          title: args.title,
+          description: args.description,
+          geometry: args.geometry,
+        })
+      : await updateRoute({
+          accessToken: args.accessToken,
+          routeId: args.routeId,
+          title: args.title,
+          description: args.description,
+          geometry: args.geometry,
+        });
+
+  for (const m of args.markers) {
+    const geom = { type: "Point", coordinates: m.coordinate } as const;
+    if (m.backendId) {
+      await updateMarker({
+        accessToken: args.accessToken,
+        routeId: route.id,
+        markerId: m.backendId,
+        geometry: geom,
+        label: m.label,
+        description: m.description || undefined,
+        iconType: m.iconType,
+        orderIndex: m.orderIndex,
+      });
+    } else {
+      const created = await createMarker({
+        accessToken: args.accessToken,
+        routeId: route.id,
+        geometry: geom,
+        label: m.label,
+        description: m.description || undefined,
+        iconType: m.iconType,
+        orderIndex: m.orderIndex,
+      });
+      m.backendId = created.id;
+    }
+  }
+
+  return await getRoute({ accessToken: args.accessToken, routeId: route.id });
 }
 
 const styles = StyleSheet.create({
@@ -203,7 +535,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: tokens.space.lg,
     right: tokens.space.lg,
-    bottom: tokens.space.lg,
     backgroundColor: tokens.color.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: 1,
@@ -286,6 +617,7 @@ const styles = StyleSheet.create({
   metricsRow: {
     marginTop: tokens.space.md,
     flexDirection: "row",
+    marginBottom: tokens.space.lg,
   },
   metricCard: {
     flex: 1,
@@ -301,6 +633,7 @@ const styles = StyleSheet.create({
     letterSpacing: tokens.font.letterSpacing.wideCapsSm,
     color: tokens.color.textMuted,
     fontWeight: tokens.font.weight.bold,
+    textTransform: "uppercase",
   },
   metricValue: {
     marginTop: 6,
@@ -313,4 +646,119 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: tokens.font.weight.bold,
   },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(1, 42, 74, 0.35)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: tokens.color.surface,
+    borderTopLeftRadius: tokens.radius.lg,
+    borderTopRightRadius: tokens.radius.lg,
+    borderWidth: 1,
+    borderColor: tokens.color.hairline,
+    padding: tokens.space.lg,
+    maxHeight: "85%",
+  },
+  modalTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: tokens.space.sm,
+  },
+  modalTitle: {
+    fontSize: tokens.font.size.lg,
+    fontWeight: tokens.font.weight.bold,
+    color: tokens.color.text,
+  },
+  modalSubtitle: {
+    marginTop: 4,
+    fontSize: tokens.font.size.sm,
+    color: tokens.color.textSecondary,
+  },
+  close: {
+    fontSize: 22,
+    color: tokens.color.text,
+    fontWeight: tokens.font.weight.bold,
+    marginTop: -1,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    marginTop: tokens.space.lg,
+    marginBottom: tokens.space.lg,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "rgba(169, 214, 229, 0.12)",
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.hairline,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+  },
+  check: {
+    color: tokens.color.onPrimary,
+    fontWeight: tokens.font.weight.bold,
+  },
+  iconRow: {
+    marginTop: tokens.space.md,
+  },
+  iconRowTitle: {
+    fontSize: 12,
+    letterSpacing: tokens.font.letterSpacing.wideCapsSm,
+    color: tokens.color.textMuted,
+    fontWeight: tokens.font.weight.bold,
+    textTransform: "uppercase",
+  },
+  iconChoices: {
+    flexDirection: "row",
+  },
+  iconChoice: {
+    flex: 1,
+    marginRight: 10,
+    borderRadius: tokens.radius.md,
+    borderWidth: 1,
+    borderColor: tokens.color.hairline,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+  },
+  iconChoicePressed: {
+    backgroundColor: "rgba(169, 214, 229, 0.16)",
+  },
+  iconChoiceSelected: {
+    backgroundColor: tokens.color.primary,
+    borderColor: tokens.color.primary,
+  },
+  iconChoiceGlyph: {
+    fontSize: 16,
+    color: tokens.palette.yaleBlue3,
+    fontWeight: tokens.font.weight.bold,
+  },
+  iconChoiceGlyphSelected: {
+    color: tokens.color.onPrimary,
+  },
+  iconChoiceLabel: {
+    marginTop: 6,
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: tokens.palette.yaleBlue3,
+    fontWeight: tokens.font.weight.bold,
+  },
+  iconChoiceLabelSelected: {
+    color: tokens.color.onPrimary,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  cancelText: {
+    fontSize: tokens.font.size.sm,
+    color: tokens.color.primary,
+    fontWeight: tokens.font.weight.bold,
+  },
 });
+
