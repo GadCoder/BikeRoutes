@@ -395,7 +395,7 @@ async def update_marker(
     )
 
 
-@router.delete("/{route_id}/markers/{marker_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{route_id}/markers/{marker_id}")
 async def delete_marker(
     route_id: uuid.UUID,
     marker_id: uuid.UUID,
@@ -414,3 +414,4 @@ async def delete_marker(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Marker not found")
     await session.delete(marker)
     await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
