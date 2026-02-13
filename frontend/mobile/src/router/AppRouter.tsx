@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { BootSplashScreen } from "../screens/BootSplashScreen";
 import { RegisterScreen } from "../screens/Auth/RegisterScreen";
 import { SignInScreen } from "../screens/Auth/SignInScreen";
-import { AuthedHomeScreen } from "../screens/Home/AuthedHomeScreen";
+import { EditorScreen } from "../screens/Editor/EditorScreen";
 import {
   loadSession,
   registerWithEmailPassword,
@@ -61,9 +61,8 @@ export function AppRouter() {
   }
 
   return (
-    <AuthedHomeScreen
-      email={session.user.email}
-      onSignOut={async () => {
+    <EditorScreen
+      onExit={async () => {
         await signOut();
         setSession(null);
         setAuthRoute("sign_in");
@@ -71,4 +70,3 @@ export function AppRouter() {
     />
   );
 }
-

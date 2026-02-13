@@ -4,10 +4,17 @@
     "slug": "bikeroutes",
     "version": "0.0.0",
     "orientation": "portrait",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "extra": {
       "googleAuthEnabled": false,
       "googleOauthClientId": ""
+    },
+    "android": {
+      "package": "com.anonymous.bikeroutes"
     }
   }
 }
