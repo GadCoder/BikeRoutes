@@ -19,7 +19,7 @@ These tasks unblock all other tracks and should be done first.
 
 Backend auth can be built in parallel with backend route/marker APIs and mobile UI (which can start with mocked data).
 
-- [ ] 2.1 Implement users and refresh token database models and create Alembic migrations.
+- [x] 2.1 Implement users and refresh token database models and create Alembic migrations.
 - [ ] 2.2 Implement `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`, and `/api/auth/me` endpoints.
 - [ ] 2.3 Implement JWT middleware/dependencies to protect mutation endpoints and identify current user.
 - [ ] 2.4 Implement refresh token rotation, hashed token persistence, and revocation-on-reuse logic.
