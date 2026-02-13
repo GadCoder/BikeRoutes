@@ -23,7 +23,7 @@ async def test_app():
         await conn.run_sync(Base.metadata.create_all)
 
     app = FastAPI(title="BikeRoutes API (test)")
-    app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+    app.include_router(auth_router, prefix="/api", tags=["auth"])
 
     async def override_get_db():
         async with SessionLocal() as session:
