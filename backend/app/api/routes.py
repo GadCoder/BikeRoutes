@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Literal
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from geoalchemy2 import Geography
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -265,7 +265,7 @@ async def update_route(
     return _route_feature(route, geometry, markers)
 
 
-@router.delete("/{route_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{route_id}", status_code=status.HTTP_204_NO_CONTENT, response_class=Response)
 async def delete_route(
     route_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
@@ -413,4 +413,3 @@ async def delete_marker(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Marker not found")
     await session.delete(marker)
     await session.commit()
-
