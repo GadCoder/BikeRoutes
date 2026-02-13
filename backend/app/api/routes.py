@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Any, Literal
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from geoalchemy2 import Geography
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.auth.contracts import UserPrincipal
 from app.auth.dependencies import get_current_user, get_optional_current_user
@@ -14,6 +17,7 @@ from app.db.session import get_db_session
 from app.geo.geojson import linestring_wkt_from_geojson, point_wkt_from_geojson
 from app.models.marker import Marker
 from app.models.route import Route
+from app.schemas.routes import MarkerCreate, MarkerFeature, MarkerUpdate, RouteCreate, RouteFeature, RouteUpdate
 
 router = APIRouter(prefix="/routes", tags=["routes"])
 
@@ -37,30 +41,68 @@ def _require_owner(route: Route, user: UserPrincipal) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 
-def _route_dict(route: Route, *, include_markers: bool, markers: list[dict] | None = None) -> dict[str, Any]:
-    out: dict[str, Any] = {
-        "id": str(route.id),
-        "title": route.title,
-        "description": route.description,
-        "distance_km": route.distance_km,
-        "is_public": route.is_public,
-    }
-    if include_markers:
-        out["markers"] = markers or []
+async def _compute_and_persist_distance_km(session: AsyncSession, route_id: uuid.UUID) -> float:
+    stmt = sa.select((sa.func.ST_Length(sa.cast(Route.geometry, Geography)) / 1000.0).label("distance_km")).where(
+        Route.id == route_id
+    )
+    distance_km = float((await session.execute(stmt)).scalar_one())
+    await session.execute(sa.update(Route).where(Route.id == route_id).values(distance_km=distance_km))
+    return distance_km
+
+
+async def _route_geometry_geojson(session: AsyncSession, route_id: uuid.UUID) -> dict[str, Any]:
+    geom_json = (
+        await session.execute(sa.select(sa.func.ST_AsGeoJSON(Route.geometry)).where(Route.id == route_id))
+    ).scalar_one()
+    return json.loads(geom_json)
+
+
+async def _markers_features(session: AsyncSession, route_id: uuid.UUID) -> list[MarkerFeature]:
+    stmt = (
+        sa.select(
+            Marker.id,
+            Marker.label,
+            Marker.description,
+            Marker.icon_type,
+            Marker.order_index,
+            sa.func.ST_AsGeoJSON(Marker.geometry).label("geom_json"),
+        )
+        .where(Marker.route_id == route_id)
+        .order_by(Marker.order_index.asc(), Marker.created_at.asc())
+    )
+    rows = (await session.execute(stmt)).all()
+    out: list[MarkerFeature] = []
+    for r in rows:
+        out.append(
+            MarkerFeature(
+                id=str(r.id),
+                geometry=json.loads(r.geom_json),
+                properties={
+                    "label": r.label,
+                    "description": r.description,
+                    "icon_type": r.icon_type,
+                    "order_index": r.order_index,
+                },
+            )
+        )
     return out
 
 
-def _marker_dict(marker: Marker) -> dict[str, Any]:
-    return {
-        "id": str(marker.id),
-        "label": marker.label,
-        "description": marker.description,
-        "icon_type": marker.icon_type,
-        "order_index": marker.order_index,
-    }
+def _route_feature(route: Route, geometry: dict[str, Any], markers: list[MarkerFeature]) -> RouteFeature:
+    return RouteFeature(
+        id=str(route.id),
+        geometry=geometry,
+        properties={
+            "title": route.title,
+            "description": route.description,
+            "distance_km": route.distance_km,
+            "is_public": route.is_public,
+            "markers": [m.model_dump() for m in markers],
+        },
+    )
 
 
-@router.get("", response_model=list[dict])
+@router.get("", response_model=list[RouteFeature])
 async def list_routes(
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal | None = Depends(get_optional_current_user),
@@ -70,7 +112,7 @@ async def list_routes(
     order: Literal["asc", "desc"] = Query(default="desc"),
     q: str | None = Query(default=None),
     bbox: str | None = Query(default=None),
-) -> list[dict]:
+) -> list[RouteFeature]:
     conditions: list[sa.ColumnElement[bool]] = []
     if user is None:
         conditions.append(Route.is_public.is_(True))
@@ -81,7 +123,10 @@ async def list_routes(
         conditions.append(Route.title.ilike(f"%{q}%"))
 
     if bbox:
-        min_lng, min_lat, max_lng, max_lat = _parse_bbox(bbox)
+        try:
+            min_lng, min_lat, max_lng, max_lat = _parse_bbox(bbox)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
         envelope = sa.func.ST_MakeEnvelope(min_lng, min_lat, max_lng, max_lat, 4326)
         conditions.append(sa.func.ST_Intersects(Route.geometry, envelope))
 
@@ -96,102 +141,128 @@ async def list_routes(
         .limit(page_size)
     )
     routes = (await session.execute(stmt)).scalars().all()
-    return [_route_dict(r, include_markers=False) for r in routes]
+    if not routes:
+        return []
+
+    route_ids = [r.id for r in routes]
+    geom_stmt = sa.select(Route.id, sa.func.ST_AsGeoJSON(Route.geometry).label("geom_json")).where(Route.id.in_(route_ids))
+    geom_rows = (await session.execute(geom_stmt)).all()
+    geom_by_id = {r.id: json.loads(r.geom_json) for r in geom_rows}
+
+    marker_stmt = (
+        sa.select(
+            Marker.route_id,
+            Marker.id,
+            Marker.label,
+            Marker.description,
+            Marker.icon_type,
+            Marker.order_index,
+            sa.func.ST_AsGeoJSON(Marker.geometry).label("geom_json"),
+        )
+        .where(Marker.route_id.in_(route_ids))
+        .order_by(Marker.route_id.asc(), Marker.order_index.asc(), Marker.created_at.asc())
+    )
+    marker_rows = (await session.execute(marker_stmt)).all()
+    markers_by_route: dict[uuid.UUID, list[MarkerFeature]] = {rid: [] for rid in route_ids}
+    for mr in marker_rows:
+        markers_by_route[mr.route_id].append(
+            MarkerFeature(
+                id=str(mr.id),
+                geometry=json.loads(mr.geom_json),
+                properties={
+                    "label": mr.label,
+                    "description": mr.description,
+                    "icon_type": mr.icon_type,
+                    "order_index": mr.order_index,
+                },
+            )
+        )
+
+    return [_route_feature(r, geom_by_id[r.id], markers_by_route.get(r.id, [])) for r in routes]
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=dict)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=RouteFeature)
 async def create_route(
-    payload: dict,
+    payload: RouteCreate,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal = Depends(get_current_user),
-) -> dict:
-    title = payload.get("title")
-    if not isinstance(title, str) or not title.strip():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="title is required")
-
-    geometry = payload.get("geometry")
-    if not isinstance(geometry, dict):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="geometry is required")
+) -> RouteFeature:
     try:
-        geom = linestring_wkt_from_geojson(geometry)
+        geom = linestring_wkt_from_geojson(payload.geometry.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     route = Route(
         user_id=user.id,
-        title=title.strip(),
-        description=payload.get("description"),
+        title=payload.title,
+        description=payload.description,
         geometry=geom,
-        is_public=bool(payload.get("is_public", False)),
-        # Track C 3.5 will make this canonical and server-computed; for now we default to 0.
-        distance_km=0.0,
+        is_public=payload.is_public,
+        distance_km=0.0,  # always overwritten by canonical computation below
     )
     session.add(route)
+    await session.flush()
+
+    await _compute_and_persist_distance_km(session, route.id)
     await session.commit()
     await session.refresh(route)
-    return _route_dict(route, include_markers=True, markers=[])
+
+    geometry = await _route_geometry_geojson(session, route.id)
+    return _route_feature(route, geometry, [])
 
 
-@router.get("/{route_id}", response_model=dict)
+@router.get("/{route_id}", response_model=RouteFeature)
 async def get_route(
     route_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal | None = Depends(get_optional_current_user),
-) -> dict:
-    route = (await session.execute(sa.select(Route).where(Route.id == route_id))).scalar_one_or_none()
+) -> RouteFeature:
+    route = (
+        await session.execute(sa.select(Route).options(selectinload(Route.markers)).where(Route.id == route_id))
+    ).scalar_one_or_none()
     if route is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
     if not _can_view_route(route, user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    markers = (
-        await session.execute(
-            sa.select(Marker).where(Marker.route_id == route_id).order_by(Marker.order_index.asc(), Marker.created_at.asc())
-        )
-    ).scalars().all()
-    return _route_dict(route, include_markers=True, markers=[_marker_dict(m) for m in markers])
+    geometry = await _route_geometry_geojson(session, route.id)
+    markers = await _markers_features(session, route.id)
+    return _route_feature(route, geometry, markers)
 
 
-@router.put("/{route_id}", response_model=dict)
+@router.put("/{route_id}", response_model=RouteFeature)
 async def update_route(
     route_id: uuid.UUID,
-    payload: dict,
+    payload: RouteUpdate,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal = Depends(get_current_user),
-) -> dict:
+) -> RouteFeature:
     route = (await session.execute(sa.select(Route).where(Route.id == route_id))).scalar_one_or_none()
     if route is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
     _require_owner(route, user)
 
-    if "title" in payload:
-        title = payload.get("title")
-        if not isinstance(title, str) or not title.strip():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="title must be non-empty")
-        route.title = title.strip()
-    if "description" in payload:
-        route.description = payload.get("description")
-    if "is_public" in payload:
-        route.is_public = bool(payload.get("is_public"))
-    if "geometry" in payload and payload.get("geometry") is not None:
-        geometry = payload.get("geometry")
-        if not isinstance(geometry, dict):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="geometry must be an object")
+    if payload.title is not None:
+        route.title = payload.title
+    if payload.description is not None:
+        route.description = payload.description
+    if payload.is_public is not None:
+        route.is_public = payload.is_public
+    if payload.geometry is not None:
         try:
-            route.geometry = linestring_wkt_from_geojson(geometry)
+            route.geometry = linestring_wkt_from_geojson(payload.geometry.model_dump())
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        await session.flush()
+        await _compute_and_persist_distance_km(session, route.id)
 
-    # Ignore client-supplied distance_km; Track C 3.5 will compute canonical value on the server.
+    # Ignore client-supplied distance_km (canonical server computed).
     await session.commit()
     await session.refresh(route)
 
-    markers = (
-        await session.execute(
-            sa.select(Marker).where(Marker.route_id == route_id).order_by(Marker.order_index.asc(), Marker.created_at.asc())
-        )
-    ).scalars().all()
-    return _route_dict(route, include_markers=True, markers=[_marker_dict(m) for m in markers])
+    geometry = await _route_geometry_geojson(session, route.id)
+    markers = await _markers_features(session, route.id)
+    return _route_feature(route, geometry, markers)
 
 
 @router.delete("/{route_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -208,53 +279,44 @@ async def delete_route(
     await session.commit()
 
 
-@router.get("/{route_id}/markers", response_model=list[dict])
+@router.get("/{route_id}/markers", response_model=list[MarkerFeature])
 async def list_markers(
     route_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal | None = Depends(get_optional_current_user),
-) -> list[dict]:
+) -> list[MarkerFeature]:
     route = (await session.execute(sa.select(Route).where(Route.id == route_id))).scalar_one_or_none()
     if route is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
     if not _can_view_route(route, user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-
-    markers = (
-        await session.execute(
-            sa.select(Marker).where(Marker.route_id == route_id).order_by(Marker.order_index.asc(), Marker.created_at.asc())
-        )
-    ).scalars().all()
-    return [_marker_dict(m) for m in markers]
+    return await _markers_features(session, route_id)
 
 
-@router.post("/{route_id}/markers", status_code=status.HTTP_201_CREATED, response_model=dict)
+@router.post("/{route_id}/markers", status_code=status.HTTP_201_CREATED, response_model=MarkerFeature)
 async def create_marker(
     route_id: uuid.UUID,
-    payload: dict,
+    payload: MarkerCreate,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal = Depends(get_current_user),
-) -> dict:
+) -> MarkerFeature:
     route = (await session.execute(sa.select(Route).where(Route.id == route_id))).scalar_one_or_none()
     if route is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
     _require_owner(route, user)
 
-    geometry = payload.get("geometry")
-    if not isinstance(geometry, dict):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="geometry is required")
     try:
-        geom = point_wkt_from_geojson(geometry)
+        geom = point_wkt_from_geojson(payload.geometry.model_dump())
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
     marker = Marker(
         route_id=route_id,
         geometry=geom,
-        label=payload.get("label"),
-        description=payload.get("description"),
-        icon_type=str(payload.get("icon_type") or "default"),
-        order_index=int(payload.get("order_index") or 0),
+        label=payload.label,
+        description=payload.description,
+        icon_type=payload.icon_type,
+        order_index=payload.order_index,
     )
     session.add(marker)
     try:
@@ -262,18 +324,30 @@ async def create_marker(
     except IntegrityError as e:
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Marker order_index conflict") from e
-    await session.refresh(marker)
-    return _marker_dict(marker)
+
+    geom_json = (
+        await session.execute(sa.select(sa.func.ST_AsGeoJSON(Marker.geometry)).where(Marker.id == marker.id))
+    ).scalar_one()
+    return MarkerFeature(
+        id=str(marker.id),
+        geometry=json.loads(geom_json),
+        properties={
+            "label": marker.label,
+            "description": marker.description,
+            "icon_type": marker.icon_type,
+            "order_index": marker.order_index,
+        },
+    )
 
 
-@router.put("/{route_id}/markers/{marker_id}", response_model=dict)
+@router.put("/{route_id}/markers/{marker_id}", response_model=MarkerFeature)
 async def update_marker(
     route_id: uuid.UUID,
     marker_id: uuid.UUID,
-    payload: dict,
+    payload: MarkerUpdate,
     session: AsyncSession = Depends(get_db_session),
     user: UserPrincipal = Depends(get_current_user),
-) -> dict:
+) -> MarkerFeature:
     route = (await session.execute(sa.select(Route).where(Route.id == route_id))).scalar_one_or_none()
     if route is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
@@ -285,20 +359,17 @@ async def update_marker(
     if marker is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Marker not found")
 
-    if "label" in payload:
-        marker.label = payload.get("label")
-    if "description" in payload:
-        marker.description = payload.get("description")
-    if "icon_type" in payload and payload.get("icon_type") is not None:
-        marker.icon_type = str(payload.get("icon_type"))
-    if "order_index" in payload and payload.get("order_index") is not None:
-        marker.order_index = int(payload.get("order_index"))
-    if "geometry" in payload and payload.get("geometry") is not None:
-        geometry = payload.get("geometry")
-        if not isinstance(geometry, dict):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="geometry must be an object")
+    if payload.label is not None:
+        marker.label = payload.label
+    if payload.description is not None:
+        marker.description = payload.description
+    if payload.icon_type is not None:
+        marker.icon_type = payload.icon_type
+    if payload.order_index is not None:
+        marker.order_index = payload.order_index
+    if payload.geometry is not None:
         try:
-            marker.geometry = point_wkt_from_geojson(geometry)
+            marker.geometry = point_wkt_from_geojson(payload.geometry.model_dump())
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
@@ -307,8 +378,20 @@ async def update_marker(
     except IntegrityError as e:
         await session.rollback()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Marker order_index conflict") from e
-    await session.refresh(marker)
-    return _marker_dict(marker)
+
+    geom_json = (
+        await session.execute(sa.select(sa.func.ST_AsGeoJSON(Marker.geometry)).where(Marker.id == marker.id))
+    ).scalar_one()
+    return MarkerFeature(
+        id=str(marker.id),
+        geometry=json.loads(geom_json),
+        properties={
+            "label": marker.label,
+            "description": marker.description,
+            "icon_type": marker.icon_type,
+            "order_index": marker.order_index,
+        },
+    )
 
 
 @router.delete("/{route_id}/markers/{marker_id}", status_code=status.HTTP_204_NO_CONTENT)

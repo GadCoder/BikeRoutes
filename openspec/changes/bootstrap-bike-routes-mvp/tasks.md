@@ -28,11 +28,11 @@ Backend auth can be built in parallel with backend route/marker APIs and mobile 
 
 Routes/markers APIs can be built in parallel with auth, but final ownership/visibility enforcement depends on `2.3`.
 
-- [ ] 3.1 Implement route and marker SQLAlchemy models with PostGIS geometry fields and required indexes/constraints.
-- [ ] 3.2 Implement route CRUD endpoints with ownership checks and visibility enforcement.
-- [ ] 3.3 Implement marker CRUD endpoints nested under routes with ownership checks.
-- [ ] 3.4 Implement GeoJSON serialization contracts for route and marker responses.
-- [ ] 3.5 Implement server-side canonical route distance calculation from geometry and ignore client-supplied distance.
+- [x] 3.1 Implement route and marker SQLAlchemy models with PostGIS geometry fields and required indexes/constraints.
+- [x] 3.2 Implement route CRUD endpoints with ownership checks and visibility enforcement.
+- [x] 3.3 Implement marker CRUD endpoints nested under routes with ownership checks.
+- [x] 3.4 Implement GeoJSON serialization contracts for route and marker responses.
+- [x] 3.5 Implement server-side canonical route distance calculation from geometry and ignore client-supplied distance.
 
 ## 4. MVP Track D: Mobile UI + Editor
 
