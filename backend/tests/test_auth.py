@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app.api.auth import router as auth_router
 from app.auth.models import Base
 from app.db import get_db
-from app.main import create_app
 
 
 @pytest.fixture()
@@ -18,9 +19,11 @@ async def test_app():
     SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
     async with engine.begin() as conn:
+        # Only auth tables are present in this test app; avoid importing geo/routes.
         await conn.run_sync(Base.metadata.create_all)
 
-    app = create_app()
+    app = FastAPI(title="BikeRoutes API (test)")
+    app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 
     async def override_get_db():
         async with SessionLocal() as session:
@@ -46,7 +49,10 @@ async def test_register_then_me_happy_path(test_app):
         assert "refresh_token" in data
         assert data["user"]["email"] == "rider@example.com"
 
-        me = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {data['access_token']}"})
+        me = await client.get(
+            "/api/auth/me",
+            headers={"Authorization": f"Bearer {data['access_token']}"},
+        )
         assert me.status_code == 200, me.text
         me_data = me.json()
         assert me_data["email"] == "rider@example.com"
@@ -73,4 +79,3 @@ async def test_refresh_reuse_revokes_session(test_app):
         # ...and revoke the currently active refresh token (require re-auth).
         still_ok = await client.post("/api/auth/refresh", json={"refresh_token": second["refresh_token"]})
         assert still_ok.status_code == 401
-
