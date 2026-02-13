@@ -1,6 +1,13 @@
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
 import { StubMap } from "./StubMap";
 
+export type MapMarker = {
+  id: string;
+  coordinate: GeoJSONPosition;
+  iconType: string;
+  label?: string;
+};
+
 /**
  * Map canvas abstraction for the editor.
  * MVP uses an in-app stub implementation to avoid native map dependencies.
@@ -8,9 +15,9 @@ import { StubMap } from "./StubMap";
  */
 export function MapCanvas(props: {
   geometry: GeoJSONLineStringGeometry;
+  markers?: MapMarker[];
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
 }) {
   return <StubMap {...props} />;
 }
-

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
 import { tokens } from "../../theme/tokens";
+import type { MapMarker } from "./MapCanvas";
 
 type Size = { w: number; h: number };
 
@@ -34,6 +35,7 @@ function unprojectFromScreen(x: number, y: number, size: Size, bbox: BBox): GeoJ
 
 export function StubMap(props: {
   geometry: GeoJSONLineStringGeometry;
+  markers?: MapMarker[];
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
 }) {
@@ -43,6 +45,13 @@ export function StubMap(props: {
   const pts = useMemo(() => {
     return props.geometry.coordinates.map((c) => projectToScreen(c, size, bbox));
   }, [props.geometry.coordinates, size.w, size.h, bbox.minLon, bbox.maxLon, bbox.minLat, bbox.maxLat]);
+
+  const markers = useMemo(() => {
+    return (props.markers ?? []).map((m) => ({
+      ...m,
+      p: projectToScreen(m.coordinate, size, bbox),
+    }));
+  }, [props.markers, size.w, size.h, bbox.minLon, bbox.maxLon, bbox.minLat, bbox.maxLat]);
 
   const segments = useMemo(() => {
     const out: Array<{
@@ -108,9 +117,24 @@ export function StubMap(props: {
             <View style={styles.vertexInner} />
           </View>
         ))}
+
+        {markers.map((m) => (
+          <View key={m.id} style={[styles.marker, { left: m.p.x - 13, top: m.p.y - 13 }]}>
+            <Text style={styles.markerText}>{markerGlyph(m.iconType)}</Text>
+          </View>
+        ))}
       </View>
     </View>
   );
+}
+
+function markerGlyph(iconType: string): string {
+  const t = iconType.trim().toLowerCase();
+  if (t === "cafe") return "C";
+  if (t === "viewpoint") return "V";
+  if (t === "repair") return "R";
+  if (t === "water") return "W";
+  return "•";
 }
 
 const styles = StyleSheet.create({
@@ -159,5 +183,21 @@ const styles = StyleSheet.create({
     width: 4,
     borderRadius: 999,
     backgroundColor: tokens.color.primary,
+  },
+  marker: {
+    position: "absolute",
+    height: 26,
+    width: 26,
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    borderWidth: 2,
+    borderColor: tokens.color.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  markerText: {
+    fontSize: 12,
+    color: tokens.color.primary,
+    fontWeight: tokens.font.weight.bold,
   },
 });

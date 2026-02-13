@@ -43,7 +43,7 @@ Mobile UI can start immediately with local/mocked data. API wiring requires `2.2
   - [x] 2.5a UI auth flow implemented with mocked session (Sign In / Register / Authed bootstrap); Google hidden when not configured; dead controls removed.
   - [ ] 2.5b Persist session (AsyncStorage/SecureStore) + wire to backend auth endpoints.
 - [x] 6.1 Integrate MapLibre React Native and mobile map screen with shared geometry contracts, matching the route creation UI: step-based bottom sheet (Step 1 of 3) with undo/redo, Clear, distance/vertices metrics, and Next CTA.
-- [ ] 6.2 Implement mobile route list/detail views with local route cache persistence, matching the reference UI:
+- [x] 6.2 Implement mobile route list/detail views with local route cache persistence, matching the reference UI:
   - My Routes screen: title, search, + create button, card list with distance/markers/recency and thumbnail, delete icon with confirm, bottom nav (MVP must not include Explore/Stats).
   - My Routes empty state: "No routes yet" illustration + supporting text + "Start Drawing" CTA.
   - Route details screen: title + optional difficulty badge, created-by + relative time, stat cards (distance/elev/markers/time), Edit Route CTA, share/visibility buttons, description section, route markers preview + View All, bottom nav (MVP must not include Explore/Stats).
