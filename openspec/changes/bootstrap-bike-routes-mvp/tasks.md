@@ -59,11 +59,11 @@ Sharing requires routes to exist (`3.2`). Owner-only toggles require auth identi
 
 ## 6. Post-MVP (Defer): Web Parity
 
-- [ ] 4.1 Integrate MapLibre GL JS with city-centered default view and baseline controls.
-- [ ] 4.2 Implement manual route drawing, vertex editing, and undo/redo behavior in the web editor (keep parity with mobile's step-based editor concepts where possible).
-- [ ] 4.3 Implement marker placement, repositioning, and metadata editing in editor UX.
-- [ ] 4.4 Implement save/load/update/delete route flows integrated with backend APIs.
-- [ ] 4.5 Implement "My Routes" page with route list, edit entry, and delete confirmation.
+- [x] 4.1 Integrate MapLibre GL JS with city-centered default view and baseline controls.
+- [x] 4.2 Implement manual route drawing, vertex editing, and undo/redo behavior in the web editor (keep parity with mobile's step-based editor concepts where possible).
+- [x] 4.3 Implement marker placement, repositioning, and metadata editing in editor UX.
+- [x] 4.4 Implement save/load/update/delete route flows integrated with backend APIs.
+- [x] 4.5 Implement "My Routes" page with route list, edit entry, and delete confirmation.
 
 ## 7. Post-MVP (Defer): Discovery
 
