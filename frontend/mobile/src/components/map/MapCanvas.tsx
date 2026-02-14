@@ -18,6 +18,7 @@ export function MapCanvas(props: {
   markers?: MapMarker[];
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
+  locateSignal?: number;
 }) {
   return <MapLibreMap {...props} />;
 }

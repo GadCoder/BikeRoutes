@@ -1,10 +1,13 @@
 import MapLibreGL from "@maplibre/maplibre-react-native";
 import { useEffect, useMemo } from "react";
+import * as Location from "expo-location";
+import { useRef } from "react";
+
 import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 import type { MapMarker } from "./MapCanvas";
 
-const STYLE_URL = "https://bikeroutes.gadcoder.com/map/style.json";
+import { LIMA_STYLE } from "../../map/limaStyle";
 
 function toLineFeature(g: GeoJSONLineStringGeometry): Feature<LineString> {
   return {
@@ -37,11 +40,29 @@ export function MapLibreMap(props: {
   markers?: MapMarker[];
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
+  locateSignal?: number;
 }) {
   // Required once per app start
   useEffect(() => {
     MapLibreGL.setAccessToken(null as any);
   }, []);
+
+  useEffect(() => {
+    if (!props.locateSignal) return;
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const lngLat: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+        cameraRef.current?.setCamera({ centerCoordinate: lngLat as any, zoomLevel: 14, animationDuration: 500 });
+      } catch {
+        // ignore
+      }
+    })();
+  }, [props.locateSignal]);
+
+  const cameraRef = useRef<MapLibreGL.Camera>(null);
 
   const center = useMemo((): GeoJSONPosition => {
     const coords = props.geometry.coordinates;
@@ -67,7 +88,7 @@ export function MapLibreMap(props: {
 
   return (
     <MapLibreGL.MapView
-      styleURL={STYLE_URL}
+      styleJSON={LIMA_STYLE}
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
@@ -79,6 +100,7 @@ export function MapLibreMap(props: {
       }}
     >
       <MapLibreGL.Camera
+        ref={cameraRef}
         centerCoordinate={center as any}
         zoomLevel={12}
         animationDuration={0}
