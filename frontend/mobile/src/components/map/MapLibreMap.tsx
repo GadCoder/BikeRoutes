@@ -1,5 +1,5 @@
 import MapLibreGL from "@maplibre/maplibre-react-native";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useRef } from "react";
 
 import type { Feature, FeatureCollection, LineString, Point } from "geojson";
@@ -7,6 +7,9 @@ import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/sha
 import type { MapMarker } from "./MapCanvas";
 
 import { LIMA_STYLE } from "../../map/limaStyle";
+
+// Required once per app lifetime — no access token needed for self-hosted tiles.
+MapLibreGL.setAccessToken(null as any);
 
 function toLineFeature(g: GeoJSONLineStringGeometry): Feature<LineString> {
   return {
@@ -40,12 +43,6 @@ export function MapLibreMap(props: {
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
 }) {
-  // Required once per app start
-  useEffect(() => {
-    MapLibreGL.setAccessToken(null as any);
-  }, []);
-
-
   const cameraRef = useRef<MapLibreGL.Camera>(null);
 
   const center = useMemo((): GeoJSONPosition => {
@@ -55,9 +52,14 @@ export function MapLibreMap(props: {
     return [-77.0428, -12.0464];
   }, [props.geometry.coordinates]);
 
+  const hasLine = props.geometry.coordinates.length >= 2;
+
   const lineFC: FeatureCollection<LineString> = useMemo(
-    () => ({ type: "FeatureCollection", features: [toLineFeature(props.geometry)] }),
-    [props.geometry],
+    () => ({
+      type: "FeatureCollection",
+      features: hasLine ? [toLineFeature(props.geometry)] : [],
+    }),
+    [props.geometry, hasLine],
   );
 
   const vertexFC: FeatureCollection<Point> = useMemo(
@@ -72,7 +74,7 @@ export function MapLibreMap(props: {
 
   return (
     <MapLibreGL.MapView
-      styleJSON={JSON.stringify(LIMA_STYLE)}
+      mapStyle={LIMA_STYLE}
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
