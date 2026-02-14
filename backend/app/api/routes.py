@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import uuid
 from typing import Any, Literal
 
@@ -20,6 +21,28 @@ from app.models.route import Route
 from app.schemas.routes import MarkerCreate, MarkerFeature, MarkerUpdate, RouteCreate, RouteFeature, RouteUpdate
 
 router = APIRouter(prefix="/routes", tags=["routes"])
+
+
+@router.get("/share/{token}", response_model=RouteFeature)
+async def get_shared_route(
+    token: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> RouteFeature:
+    # Public read-only access via share token.
+    route = (
+        await session.execute(
+            sa.select(Route)
+            .options(selectinload(Route.markers))
+            .where(Route.share_token == token, Route.is_public.is_(True))
+        )
+    ).scalar_one_or_none()
+
+    if route is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Route not found")
+
+    geometry = await _route_geometry_geojson(session, route.id)
+    markers = await _markers_features(session, route.id)
+    return _route_feature(route, geometry, markers, include_share_token=False)
 
 
 def _parse_bbox(bbox: str) -> tuple[float, float, float, float]:
@@ -88,18 +111,33 @@ async def _markers_features(session: AsyncSession, route_id: uuid.UUID) -> list[
     return out
 
 
-def _route_feature(route: Route, geometry: dict[str, Any], markers: list[MarkerFeature]) -> RouteFeature:
+def _route_feature(
+    route: Route,
+    geometry: dict[str, Any],
+    markers: list[MarkerFeature],
+    *,
+    include_share_token: bool = False,
+) -> RouteFeature:
+    props: dict[str, Any] = {
+        "title": route.title,
+        "description": route.description,
+        "distance_km": route.distance_km,
+        "is_public": route.is_public,
+        "markers": [m.model_dump() for m in markers],
+    }
+    if include_share_token:
+        props["share_token"] = route.share_token
+
     return RouteFeature(
         id=str(route.id),
         geometry=geometry,
-        properties={
-            "title": route.title,
-            "description": route.description,
-            "distance_km": route.distance_km,
-            "is_public": route.is_public,
-            "markers": [m.model_dump() for m in markers],
-        },
+        properties=props,
     )
+
+
+def _generate_share_token() -> str:
+    # 64 chars max, URL-safe.
+    return secrets.token_urlsafe(32)[:64]
 
 
 @router.get("", response_model=list[RouteFeature])
@@ -144,6 +182,10 @@ async def list_routes(
     if not routes:
         return []
 
+    owner_route_ids: set[uuid.UUID] = set()
+    if user is not None:
+        owner_route_ids = {r.id for r in routes if r.user_id == user.id}
+
     route_ids = [r.id for r in routes]
     geom_stmt = sa.select(Route.id, sa.func.ST_AsGeoJSON(Route.geometry).label("geom_json")).where(Route.id.in_(route_ids))
     geom_rows = (await session.execute(geom_stmt)).all()
@@ -178,7 +220,15 @@ async def list_routes(
             )
         )
 
-    return [_route_feature(r, geom_by_id[r.id], markers_by_route.get(r.id, [])) for r in routes]
+    return [
+        _route_feature(
+            r,
+            geom_by_id[r.id],
+            markers_by_route.get(r.id, []),
+            include_share_token=(r.id in owner_route_ids),
+        )
+        for r in routes
+    ]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=RouteFeature)
@@ -204,11 +254,15 @@ async def create_route(
     await session.flush()
 
     await _compute_and_persist_distance_km(session, route.id)
+
+    if route.is_public and route.share_token is None:
+        route.share_token = _generate_share_token()
+
     await session.commit()
     await session.refresh(route)
 
     geometry = await _route_geometry_geojson(session, route.id)
-    return _route_feature(route, geometry, [])
+    return _route_feature(route, geometry, [], include_share_token=True)
 
 
 @router.get("/{route_id}", response_model=RouteFeature)
@@ -227,7 +281,8 @@ async def get_route(
 
     geometry = await _route_geometry_geojson(session, route.id)
     markers = await _markers_features(session, route.id)
-    return _route_feature(route, geometry, markers)
+    include_share = user is not None and route.user_id == user.id
+    return _route_feature(route, geometry, markers, include_share_token=include_share)
 
 
 @router.put("/{route_id}", response_model=RouteFeature)
@@ -248,6 +303,8 @@ async def update_route(
         route.description = payload.description
     if payload.is_public is not None:
         route.is_public = payload.is_public
+        if route.is_public and route.share_token is None:
+            route.share_token = _generate_share_token()
     if payload.geometry is not None:
         try:
             route.geometry = linestring_wkt_from_geojson(payload.geometry.model_dump())
@@ -262,7 +319,7 @@ async def update_route(
 
     geometry = await _route_geometry_geojson(session, route.id)
     markers = await _markers_features(session, route.id)
-    return _route_feature(route, geometry, markers)
+    return _route_feature(route, geometry, markers, include_share_token=True)
 
 
 @router.delete("/{route_id}")
