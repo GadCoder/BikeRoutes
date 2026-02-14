@@ -6,8 +6,10 @@ export function apiBaseUrl(): string {
   const env =
     ((process.env as any)?.EXPO_PUBLIC_API_URL as string | undefined) ??
     ((process.env as any)?.EXPO_PUBLIC_API_BASE_URL as string | undefined);
-
-  // Android emulator -> host machine: http://10.0.2.2:8000
-  const base = (env ?? "http://10.0.2.2:8000").replace(/\/+$/, "");
+  // Default base URL:
+  // - production/release: use deployed API
+  // - local/dev (Android emulator): http://10.0.2.2:8000
+  const fallback = (global as any)?.__DEV__ ? "http://10.0.2.2:8000" : "https://api-bikeroutes.gadcoder.com";
+  const base = (env ?? fallback).replace(/\/+$/, "");
   return `${base}/api`;
 }
