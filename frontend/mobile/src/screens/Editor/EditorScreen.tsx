@@ -61,7 +61,6 @@ export function EditorScreen(props: {
   const [saving, setSaving] = useState(false);
 
   const [addMarkerVisible, setAddMarkerVisible] = useState(false);
-  const [locateSignal, setLocateSignal] = useState(0);
   const [pendingMarkerCoord, setPendingMarkerCoord] = useState<GeoJSONPosition | null>(null);
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerIcon, setMarkerIcon] = useState<"cafe" | "viewpoint" | "repair" | "water">("cafe");
@@ -135,7 +134,6 @@ export function EditorScreen(props: {
           geometry={geometry}
           markers={mapMarkers}
           controlsEnabled={allowMapTaps}
-          locateSignal={locateSignal}
           onPressCoordinate={(pos) => {
             if (!allowMapTaps) return;
             if (step === 1) {
@@ -178,7 +176,7 @@ export function EditorScreen(props: {
           <View style={{ height: 10 }} />
           <IconButton
             label="Locate"
-            onPress={() => setLocateSignal((s) => s + 1)}
+            onPress={() => Alert.alert("Locate", "Coming back next build.") }
             icon={<Text style={styles.iconText}>{"\u25CE"}</Text>}
           />
         </View>
