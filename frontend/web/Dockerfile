@@ -1,6 +1,11 @@
 # Build web (Vite) and serve as static files
+# Build web (Vite) and serve as static files
 FROM node:22-alpine AS build
 WORKDIR /app
+
+# Build-time API URL for Vite (Dokploy can pass as build arg).
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
 
 # Workspace install
 COPY package.json package-lock.json ./
