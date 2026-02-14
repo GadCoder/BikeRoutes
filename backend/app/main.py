@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-@app.get("/healthz")
+@app.api_route("/healthz", methods=["GET", "HEAD"])
 def healthz() -> dict[str, str]:
     return {"status": "ok", "env": settings.app_env}
 
