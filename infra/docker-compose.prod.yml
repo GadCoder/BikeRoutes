@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bikeroutes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bikeroutes}
+      POSTGRES_DB: ${POSTGRES_DB:-bikeroutes}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://bikeroutes:bikeroutes@db:5432/bikeroutes}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://bikeroutes.example.com}
+      BACKEND_HOST: 0.0.0.0
+      BACKEND_PORT: 8000
+    depends_on:
+      - db
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/web/Dockerfile
+    environment:
+      # For local testing only; in Dokploy you’ll set VITE_API_URL at build time.
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:
