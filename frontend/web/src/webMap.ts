@@ -27,6 +27,7 @@ export function createWebMap(args: {
     style: "/map/style.json",
     center: args.center,
     zoom: args.zoom,
+    maxZoom: 17,
   });
 
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
