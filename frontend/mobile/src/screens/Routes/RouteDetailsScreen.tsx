@@ -5,6 +5,7 @@ import type { GeoJSONPosition } from "../../../../shared/src";
 import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
 import { getRoute, type MarkerFeature, type RouteFeature } from "../../api/routes";
 import { Button } from "../../components/Button";
+import { DraggableSheet } from "../../components/DraggableSheet";
 import { IconButton } from "../../components/IconButton";
 import { MapCanvas, type MapMarker } from "../../components/map/MapCanvas";
 import { lineStringDistanceMeters } from "../../editor/lineStringMetrics";
@@ -21,6 +22,7 @@ export function RouteDetailsScreen(props: {
 }) {
   const [entry, setEntry] = useState<CachedRoute | null>(null);
   const [viewAll, setViewAll] = useState(false);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   async function loadFromCache() {
     const cached = await loadRoutesCache();
@@ -89,26 +91,35 @@ export function RouteDetailsScreen(props: {
           <IconButton label="Back" onPress={props.onBack} icon={<Text style={styles.iconText}>{"\u2039"}</Text>} />
         </View>
 
-        <View style={[styles.sheet, { bottom: tokens.space.lg + props.bottomInset }]}>
-          <ScrollView contentContainerStyle={{ paddingBottom: tokens.space.lg }} showsVerticalScrollIndicator={false}>
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>{title}</Text>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>MVP</Text>
+        <DraggableSheet
+          peekHeight={160}
+          expandedHeight={420}
+          bottomInset={0}
+          expanded={sheetExpanded}
+          onToggle={setSheetExpanded}
+          peekContent={
+            <View style={styles.sheetPeek}>
+              <View style={styles.headerRow}>
+                <Text style={styles.title}>{title}</Text>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>MVP</Text>
+                </View>
+              </View>
+
+              <Text style={styles.subTitle}>
+                Created by you • {entry ? formatRelativeTime(entry.updatedAt) : "recently"}
+              </Text>
+
+              <View style={styles.statsRow}>
+                <StatCard label="DISTANCE" value={`${distanceKm.toFixed(1)} km`} />
+                <StatCard label="ELEV" value={"—"} />
+                <StatCard label="MARKERS" value={`${markersCount}`} />
+                <StatCard label="TIME" value={"—"} />
               </View>
             </View>
-
-            <Text style={styles.subTitle}>
-              Created by you • {entry ? formatRelativeTime(entry.updatedAt) : "recently"}
-            </Text>
-
-            <View style={styles.statsRow}>
-              <StatCard label="DISTANCE" value={`${distanceKm.toFixed(1)} km`} />
-              <StatCard label="ELEV" value={"—"} />
-              <StatCard label="MARKERS" value={`${markersCount}`} />
-              <StatCard label="TIME" value={"—"} />
-            </View>
-
+          }
+        >
+          <ScrollView contentContainerStyle={{ paddingBottom: tokens.space.lg }} showsVerticalScrollIndicator={false}>
             <View style={styles.actionsRow}>
               <View style={{ flex: 1 }}>
                 <Button
@@ -154,7 +165,7 @@ export function RouteDetailsScreen(props: {
               )}
             </Section>
           </ScrollView>
-        </View>
+        </DraggableSheet>
 
         <Modal animationType="slide" transparent visible={viewAll} onRequestClose={() => setViewAll(false)}>
           <View style={styles.modalBackdrop}>
@@ -235,21 +246,8 @@ const styles = StyleSheet.create({
     fontWeight: tokens.font.weight.bold,
     marginTop: -1,
   },
-  sheet: {
-    position: "absolute",
-    left: tokens.space.lg,
-    right: tokens.space.lg,
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    borderColor: tokens.color.hairline,
-    padding: tokens.space.lg,
-    shadowColor: tokens.color.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-    maxHeight: "70%",
+  sheetPeek: {
+    paddingHorizontal: tokens.space.lg,
   },
   headerRow: {
     flexDirection: "row",

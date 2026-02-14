@@ -2,6 +2,7 @@ import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../sha
 import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { DraggableSheet } from "../../components/DraggableSheet";
 import { createMarker, createRoute, getRoute, updateMarker, updateRoute, type RouteFeature } from "../../api/routes";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -65,6 +66,8 @@ export function EditorScreen(props: {
   const [markerLabel, setMarkerLabel] = useState("");
   const [markerIcon, setMarkerIcon] = useState<"cafe" | "viewpoint" | "repair" | "water">("cafe");
   const [markerDesc, setMarkerDesc] = useState("");
+
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   const geometry: GeoJSONLineStringGeometry = hist.present;
 
@@ -181,51 +184,60 @@ export function EditorScreen(props: {
           />
         </View>
 
-        <View style={[styles.sheet, { bottom: tokens.space.lg + props.bottomInset }]}>
-          <View style={styles.sheetTopRow}>
-            <View style={styles.sheetLeft}>
-              <IconButton
-                label="Undo"
-                disabled={!canUndo}
-                onPress={() => setHist((h) => historyUndo(h))}
-                icon={<Text style={styles.iconTextSmall}>{"\u21B6"}</Text>}
-              />
-              <View style={{ width: 10 }} />
-              <IconButton
-                label="Redo"
-                disabled={!canRedo}
-                onPress={() => setHist((h) => historyRedo(h))}
-                icon={<Text style={styles.iconTextSmall}>{"\u21B7"}</Text>}
-              />
+        <DraggableSheet
+          peekHeight={110}
+          expandedHeight={280}
+          bottomInset={0}
+          expanded={sheetExpanded}
+          onToggle={setSheetExpanded}
+          peekContent={
+            <View style={styles.sheetPeek}>
+              <View style={styles.sheetTopRow}>
+                <View style={styles.sheetLeft}>
+                  <IconButton
+                    label="Undo"
+                    disabled={!canUndo}
+                    onPress={() => setHist((h) => historyUndo(h))}
+                    icon={<Text style={styles.iconTextSmall}>{"\u21B6"}</Text>}
+                  />
+                  <View style={{ width: 10 }} />
+                  <IconButton
+                    label="Redo"
+                    disabled={!canRedo}
+                    onPress={() => setHist((h) => historyRedo(h))}
+                    icon={<Text style={styles.iconTextSmall}>{"\u21B7"}</Text>}
+                  />
+                </View>
+
+                <View style={styles.sheetCenter}>
+                  <Text style={styles.sheetTitle}>{stepTitle(step)}</Text>
+                  <Text style={styles.sheetStep}>Step {step} of 3</Text>
+                </View>
+
+                <View style={styles.sheetRight}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setHist((h) => historyPush(h, emptyLineString()));
+                      setDraftMarkers([]);
+                    }}
+                    style={({ pressed }) => [styles.clearBtn, pressed && styles.clearBtnPressed]}
+                  >
+                    <Text style={styles.clearText}>Clear</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {step === 1 ? (
+                <HintRow text="Tap map to add points" />
+              ) : step === 2 ? (
+                <HintRow text="Tap map to add markers" />
+              ) : (
+                <HintRow text="Review and save your route." />
+              )}
             </View>
-
-            <View style={styles.sheetCenter}>
-              <Text style={styles.sheetTitle}>{stepTitle(step)}</Text>
-              <Text style={styles.sheetStep}>Step {step} of 3</Text>
-            </View>
-
-            <View style={styles.sheetRight}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setHist((h) => historyPush(h, emptyLineString()));
-                  setDraftMarkers([]);
-                }}
-                style={({ pressed }) => [styles.clearBtn, pressed && styles.clearBtnPressed]}
-              >
-                <Text style={styles.clearText}>Clear</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {step === 1 ? (
-            <HintRow text="Tap map to add points" />
-          ) : step === 2 ? (
-            <HintRow text="Tap map to add markers" />
-          ) : (
-            <HintRow text="Review and save your route." />
-          )}
-
+          }
+        >
           <View style={styles.metricsRow}>
             <MetricCard label="DISTANCE" value={formatDistanceKm(distanceMeters)} />
             <View style={{ width: 12 }} />
@@ -250,7 +262,7 @@ export function EditorScreen(props: {
             }}
             testID="editor_next"
           />
-        </View>
+        </DraggableSheet>
 
         <Modal animationType="slide" transparent visible={saveVisible} onRequestClose={() => setSaveVisible(false)}>
           <View style={styles.modalBackdrop}>
@@ -531,20 +543,8 @@ const styles = StyleSheet.create({
     color: tokens.color.text,
     fontWeight: tokens.font.weight.bold,
   },
-  sheet: {
-    position: "absolute",
-    left: tokens.space.lg,
-    right: tokens.space.lg,
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    borderColor: tokens.color.hairline,
-    padding: tokens.space.lg,
-    shadowColor: tokens.color.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+  sheetPeek: {
+    paddingHorizontal: tokens.space.lg,
   },
   sheetTopRow: {
     flexDirection: "row",
