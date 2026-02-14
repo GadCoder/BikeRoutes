@@ -37,6 +37,8 @@ function toVertexFeatures(line: GeoJSONLineStringGeometry): Feature<Point>[] {
   }));
 }
 
+const DEFAULT_ZOOM = 12;
+
 export function MapLibreMap(props: {
   geometry: GeoJSONLineStringGeometry;
   markers?: MapMarker[];
@@ -44,6 +46,7 @@ export function MapLibreMap(props: {
   controlsEnabled?: boolean;
 }) {
   const cameraRef = useRef<MapLibreGL.Camera>(null);
+  const [currentZoom, setCurrentZoom] = useState<number | null>(null);
 
   const center = useMemo((): GeoJSONPosition => {
     const coords = props.geometry.coordinates;
@@ -88,8 +91,15 @@ export function MapLibreMap(props: {
       <MapLibreGL.Camera
         ref={cameraRef}
         centerCoordinate={center as any}
-        zoomLevel={12}
+        zoomLevel={currentZoom ?? DEFAULT_ZOOM}
         animationDuration={0}
+        onUserTrackingModeChange={(e) => {
+          // Track zoom changes from user gestures
+          const newZoom = e?.nativeEvent?.payload?.zoomLevel;
+          if (typeof newZoom === 'number') {
+            setCurrentZoom(newZoom);
+          }
+        }}
       />
 
       {/* Route line */}
