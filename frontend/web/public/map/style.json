@@ -10,7 +10,7 @@
       "type": "vector",
       "tiles": ["https://tiles-bikeroutes.gadcoder.com/data/lima/{z}/{x}/{y}.pbf"],
       "minzoom": 0,
-      "maxzoom": 14
+      "maxzoom": 15
     }
   },
   "layers": [

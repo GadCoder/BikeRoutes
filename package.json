@@ -6,11 +6,23 @@
     "frontend/mobile",
     "frontend/shared"
   ],
+  "dependencies": {
+    "expo-asset": "~11.0.5",
+    "expo": "~52.0.49",
+    "react": "18.3.1",
+    "react-native": "0.76.9"
+  },
   "scripts": {
     "dev:web": "npm --workspace frontend/web run dev",
     "dev:mobile": "npm --workspace frontend/mobile run start",
     "lint:web": "npm --workspace frontend/web run lint",
-    "typecheck:web": "npm --workspace frontend/web run typecheck"
+    "typecheck:web": "npm --workspace frontend/web run typecheck",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
+  },
+  "version": "1.0.0",
+  "devDependencies": {
+    "@types/react": "~18.3.12",
+    "typescript": "^5.3.3"
   }
 }
-
