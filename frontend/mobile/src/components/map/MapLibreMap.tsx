@@ -1,7 +1,7 @@
 import MapLibreGL from "@maplibre/maplibre-react-native";
 import { useEffect, useMemo } from "react";
 import type { Feature, FeatureCollection, LineString, Point } from "geojson";
-import type { GeoJSONLineStringGeometry, GeoJSONPointGeometry, GeoJSONPosition } from "../../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 import type { MapMarker } from "./MapCanvas";
 
 const STYLE_URL = "https://bikeroutes.gadcoder.com/map/style.json";
