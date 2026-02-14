@@ -24,7 +24,7 @@ export function createWebMap(args: {
 }): WebMapHandle {
   const map = new maplibregl.Map({
     container: args.container,
-    style: "https://demotiles.maplibre.org/style.json",
+    style: "/map/style.json",
     center: args.center,
     zoom: args.zoom,
   });
