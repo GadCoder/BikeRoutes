@@ -4,5 +4,6 @@ python-dotenv
 pydantic-settings
 SQLAlchemy
 alembic
+asyncpg
 psycopg[binary,pool]
 GeoAlchemy2
