@@ -41,7 +41,7 @@ Mobile UI can start immediately with local/mocked data. API wiring requires `2.2
 
 - [ ] 2.5 Implement frontend and mobile auth flows (session storage, login/register screens, authenticated bootstrap) matching the mobile Sign In design: Google-only social option (no Apple; hide Google button if not configured).
   - [x] 2.5a UI auth flow implemented with mocked session (Sign In / Register / Authed bootstrap); Google hidden when not configured; dead controls removed.
-  - [ ] 2.5b Persist session (AsyncStorage/SecureStore) + wire to backend auth endpoints.
+  - [x] 2.5b Persist session (AsyncStorage/SecureStore) + wire to backend auth endpoints.
 - [x] 6.1 Integrate MapLibre React Native and mobile map screen with shared geometry contracts, matching the route creation UI: step-based bottom sheet (Step 1 of 3) with undo/redo, Clear, distance/vertices metrics, and Next CTA.
 - [x] 6.2 Implement mobile route list/detail views with local route cache persistence, matching the reference UI:
   - My Routes screen: title, search, + create button, card list with distance/markers/recency and thumbnail, delete icon with confirm, bottom nav (MVP must not include Explore/Stats).
