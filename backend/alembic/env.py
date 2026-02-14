@@ -29,8 +29,12 @@ target_metadata = Base.metadata
 
 def _sync_db_url(url: str) -> str:
     # Alembic runs sync engines. Convert async driver URLs if present.
-    if url.startswith("postgresql+psycopg://"):
-        return url.replace("postgresql+psycopg://", "postgresql://", 1)
+    # Supported async drivers in this repo:
+    # - asyncpg (runtime)
+    # - psycopg (sometimes used locally)
+    for prefix in ("postgresql+asyncpg://", "postgresql+psycopg://"):
+        if url.startswith(prefix):
+            return url.replace(prefix, "postgresql://", 1)
     return url
 
 
