@@ -11,6 +11,21 @@ export type Session = {
 let memorySession: Session | null = null;
 let refreshInFlight: Promise<Session> | null = null;
 
+type SessionListener = (session: Session) => void;
+const listeners = new Set<SessionListener>();
+
+/** Subscribe to session changes (e.g. after a background token refresh). Returns unsubscribe fn. */
+export function onSessionChange(fn: SessionListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+function notifyListeners(s: Session): void {
+  for (const fn of listeners) {
+    try { fn(s); } catch { /* listener errors should not break the refresh flow */ }
+  }
+}
+
 function toSession(out: SessionOut): Session {
   return {
     accessToken: out.access_token,
@@ -104,7 +119,11 @@ export async function withAuthRetry<T>(fn: (accessToken: string) => Promise<T>):
     return await fn(s.accessToken);
   } catch (err) {
     if (!isApi401(err)) throw err;
+    // Force a real refresh by clearing the stale in-memory session.
+    memorySession = null;
     const refreshed = await ensureSessionRefreshed();
+    // Notify listeners so React state stays in sync.
+    notifyListeners(refreshed);
     return await fn(refreshed.accessToken);
   }
 }

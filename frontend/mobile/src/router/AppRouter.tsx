@@ -10,6 +10,7 @@ import { BottomNav, BOTTOM_NAV_HEIGHT, type BottomTab } from "../components/Bott
 import { Alert, View } from "react-native";
 import {
   loadSession,
+  onSessionChange,
   registerWithEmailPassword,
   signInWithEmailPassword,
   signOut,
@@ -42,6 +43,11 @@ export function AppRouter() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // Keep React state in sync when withAuthRetry refreshes the token in the background.
+  useEffect(() => {
+    return onSessionChange((updated) => setSession(updated));
   }, []);
 
   if (booting) return <BootSplashScreen />;

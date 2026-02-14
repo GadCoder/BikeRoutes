@@ -21,6 +21,7 @@ import {
 } from "../../editor/lineStringHistory";
 import { formatDistanceKm, lineStringDistanceMeters } from "../../editor/lineStringMetrics";
 import { upsertCachedRoute } from "../../state/routesCache";
+import { withAuthRetry } from "../../state/session";
 import { tokens } from "../../theme/tokens";
 
 type Step = 1 | 2 | 3;
@@ -96,7 +97,9 @@ export function EditorScreen(props: {
     let mounted = true;
     (async () => {
       try {
-        const r = await getRoute({ accessToken: props.accessToken, routeId: props.routeId! });
+        const r = await withAuthRetry((token) =>
+          getRoute({ accessToken: token, routeId: props.routeId! }),
+        );
         if (!mounted) return;
         if (isGeoJSONLineStringGeometry(r.geometry)) setHist(historyInit(r.geometry));
         setRouteName(String(r.properties.title ?? ""));
@@ -310,14 +313,16 @@ export function EditorScreen(props: {
                   if (!title) return;
                   setSaving(true);
                   try {
-                    const saved = await saveRouteToBackend({
-                      accessToken: props.accessToken,
-                      routeId: props.routeId ?? null,
-                      title,
-                      description: routeNotes.trim() || undefined,
-                      geometry,
-                      markers: draftMarkers,
-                    });
+                    const saved = await withAuthRetry((token) =>
+                      saveRouteToBackend({
+                        accessToken: token,
+                        routeId: props.routeId ?? null,
+                        title,
+                        description: routeNotes.trim() || undefined,
+                        geometry,
+                        markers: draftMarkers,
+                      }),
+                    );
                     await upsertCachedRoute(saved, { updatedAt: new Date().toISOString() });
                     setSaveVisible(false);
                     props.onSaved(saved.id);
