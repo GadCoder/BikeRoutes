@@ -88,7 +88,7 @@ export function MapLibreMap(props: {
 
   return (
     <MapLibreGL.MapView
-      styleJSON={LIMA_STYLE}
+      styleJSON={JSON.stringify(LIMA_STYLE)}
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
