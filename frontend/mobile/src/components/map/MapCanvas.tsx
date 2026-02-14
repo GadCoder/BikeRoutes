@@ -1,5 +1,5 @@
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
-import { StubMap } from "./StubMap";
+import { MapLibreMap } from "./MapLibreMap";
 
 export type MapMarker = {
   id: string;
@@ -19,5 +19,5 @@ export function MapCanvas(props: {
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
 }) {
-  return <StubMap {...props} />;
+  return <MapLibreMap {...props} />;
 }
