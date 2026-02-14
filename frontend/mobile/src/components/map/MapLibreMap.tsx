@@ -1,6 +1,5 @@
 import MapLibreGL from "@maplibre/maplibre-react-native";
-import { useMemo } from "react";
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
@@ -77,7 +76,7 @@ export function MapLibreMap(props: {
 
   return (
     <MapLibreGL.MapView
-      mapStyle={LIMA_STYLE}
+      mapStyle={JSON.stringify(LIMA_STYLE)}
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
