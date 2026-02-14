@@ -79,6 +79,6 @@ Sharing requires routes to exist (`3.2`). Owner-only toggles require auth identi
 
 - [ ] 7.1 Add backend and frontend tests for auth, route permissions, marker CRUD, and discovery filtering.
 - [ ] 7.2 Add API/health logging baseline and production readiness checks.
-- [ ] 7.3 Create production Docker Compose and Caddy configuration for TLS termination and reverse proxying.
-- [ ] 7.4 Add GitHub Actions pipeline for build/test and VPS deployment workflow.
-- [ ] 7.5 Document API usage and deployment runbooks in `docs/API.md` and `docs/DEPLOYMENT.md`.
+- [x] 7.3 Create production Docker Compose and Caddy configuration for TLS termination and reverse proxying.
+- [ ] 7.4 Add GitHub Actions pipeline for build/test and VPS deployment workflow. (Not required: deploy is handled via Dokploy)
+- [x] 7.5 Document API usage and deployment runbooks in `docs/API.md` and `docs/DEPLOYMENT.md`.
