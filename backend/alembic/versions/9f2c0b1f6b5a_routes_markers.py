@@ -18,8 +18,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
-    op.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto;")
+    # Extensions should be provisioned by the DB image/admin.
+    # Creating extensions often requires superuser privileges, which the app DB user may not have.
+    # postgis/postgis images already ship with PostGIS available.
 
     op.create_table(
         "routes",
