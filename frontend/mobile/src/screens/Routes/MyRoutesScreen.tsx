@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { deleteRoute, listRoutes, type RouteFeature } from "../../api/routes";
+import { DraggableSheet } from "../../components/DraggableSheet";
 import { IconButton } from "../../components/IconButton";
 import { MapCanvas } from "../../components/map/MapCanvas";
 import { tokens } from "../../theme/tokens";
@@ -28,6 +29,7 @@ export function MyRoutesScreen(props: {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [routes, setRoutes] = useState<CachedRoute[]>([]);
+  const [sheetExpanded, setSheetExpanded] = useState(false);
 
   async function loadFromCache(): Promise<CachedRoute[]> {
     const cached = await loadRoutesCache();
@@ -90,38 +92,47 @@ export function MyRoutesScreen(props: {
           </View>
         ) : null}
 
-        <View style={[styles.sheet, { bottom: props.bottomInset }]}>
-          <View style={styles.topBar}>
-            <Text style={styles.title}>My Routes</Text>
-            <IconButton
-              label="Create route"
-              onPress={props.onCreate}
-              icon={<Text style={styles.plus}>+</Text>}
-              testID="routes_create"
-            />
-          </View>
+        <DraggableSheet
+          peekHeight={130}
+          expandedHeight={empty ? 340 : 420}
+          bottomInset={0}
+          expanded={sheetExpanded}
+          onToggle={setSheetExpanded}
+          peekContent={
+            <View style={styles.sheetPeek}>
+              <View style={styles.topBar}>
+                <Text style={styles.title}>My Routes</Text>
+                <IconButton
+                  label="Create route"
+                  onPress={props.onCreate}
+                  icon={<Text style={styles.plus}>+</Text>}
+                  testID="routes_create"
+                />
+              </View>
 
-          <View style={styles.searchWrap}>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Search routes..."
-              placeholderTextColor={"rgba(1, 58, 99, 0.45)"}
-              style={styles.search}
-              returnKeyType="search"
-              onSubmitEditing={() => refreshFromBackend()}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => refreshFromBackend()}
-              style={({ pressed }) => [styles.refreshBtn, pressed && styles.refreshBtnPressed]}
-            >
-              <Text style={styles.refreshText}>{loading ? "..." : "Refresh"}</Text>
-            </Pressable>
-          </View>
-
+              <View style={styles.searchWrap}>
+                <TextInput
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search routes..."
+                  placeholderTextColor={"rgba(1, 58, 99, 0.45)"}
+                  style={styles.search}
+                  returnKeyType="search"
+                  onSubmitEditing={() => refreshFromBackend()}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => refreshFromBackend()}
+                  style={({ pressed }) => [styles.refreshBtn, pressed && styles.refreshBtnPressed]}
+                >
+                  <Text style={styles.refreshText}>{loading ? "..." : "Refresh"}</Text>
+                </Pressable>
+              </View>
+            </View>
+          }
+        >
           {empty ? (
-            <View style={[styles.emptyWrap, { paddingBottom: tokens.space.xl }]}>
+            <View style={styles.emptyWrap}>
               <View style={styles.emptyIcon}>
                 <Text style={styles.emptyIconText}>⟲</Text>
               </View>
@@ -138,7 +149,7 @@ export function MyRoutesScreen(props: {
               </Pressable>
             </View>
           ) : (
-            <ScrollView contentContainerStyle={[styles.list, { paddingBottom: tokens.space.xl }]}>
+            <ScrollView contentContainerStyle={styles.list}>
               {filtered.map((r) => (
                 <RouteCard
                   key={r.route.id}
@@ -146,7 +157,7 @@ export function MyRoutesScreen(props: {
                   onPress={() => props.onOpenRoute(r.route.id)}
                   onDelete={() => {
                     const title = r.route.properties.title ?? "Untitled route";
-                    Alert.alert("Delete route?", `Delete “${title}” from My Routes?`, [
+                    Alert.alert("Delete route?", `Delete "${title}" from My Routes?`, [
                       { text: "Cancel", style: "cancel" },
                       {
                         text: "Delete",
@@ -168,7 +179,7 @@ export function MyRoutesScreen(props: {
               ))}
             </ScrollView>
           )}
-        </View>
+        </DraggableSheet>
       </View>
     </SafeAreaView>
   );
@@ -267,21 +278,8 @@ const styles = StyleSheet.create({
     fontWeight: tokens.font.weight.bold,
     marginTop: -1,
   },
-  sheet: {
-    position: "absolute",
-    left: tokens.space.lg,
-    right: tokens.space.lg,
-    backgroundColor: tokens.color.surface,
-    borderRadius: tokens.radius.lg,
-    borderWidth: 1,
-    borderColor: tokens.color.hairline,
-    padding: tokens.space.lg,
-    shadowColor: tokens.color.shadow,
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-    maxHeight: "82%",
+  sheetPeek: {
+    paddingHorizontal: tokens.space.lg,
   },
   topBar: {
     flexDirection: "row",
