@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -9,7 +10,7 @@ from app.auth.jwt import encode_hs256
 from app.core.settings import settings
 
 
-def create_access_token(*, user_id: int) -> str:
+def create_access_token(*, user_id: uuid.UUID) -> str:
     now = datetime.now(timezone.utc)
     exp = now + timedelta(minutes=settings.access_token_ttl_minutes)
     payload: dict[str, Any] = {
@@ -32,4 +33,3 @@ def hash_refresh_token(token: str) -> str:
 
 def refresh_expires_at() -> datetime:
     return datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_ttl_days)
-

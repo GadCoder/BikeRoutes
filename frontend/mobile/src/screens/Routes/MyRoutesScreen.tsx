@@ -16,6 +16,7 @@ import { MapCanvas } from "../../components/map/MapCanvas";
 import { tokens } from "../../theme/tokens";
 import { formatRelativeTime } from "../../utils/time";
 import { loadRoutesCache, removeCachedRoute, saveRoutesCache, type CachedRoute } from "../../state/routesCache";
+import { withAuthRetry } from "../../state/session";
 import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
 import { lineStringDistanceMeters } from "../../editor/lineStringMetrics";
 
@@ -40,7 +41,9 @@ export function MyRoutesScreen(props: {
   async function refreshFromBackend(base?: CachedRoute[]) {
     try {
       setLoading(true);
-      const remote = await listRoutes({ accessToken: props.accessToken, q: query.trim() || undefined });
+      const remote = await withAuthRetry((token) =>
+        listRoutes({ accessToken: token, q: query.trim() || undefined }),
+      );
       const merged = mergeRemoteIntoCache(remote, base ?? routes);
       setRoutes(sortCached(merged));
       await saveRoutesCache(merged);
@@ -164,8 +167,9 @@ export function MyRoutesScreen(props: {
                         style: "destructive",
                         onPress: async () => {
                           try {
-                            if (props.accessToken)
-                              await deleteRoute({ accessToken: props.accessToken, routeId: r.route.id });
+                            await withAuthRetry((token) =>
+                              deleteRoute({ accessToken: token, routeId: r.route.id }),
+                            );
                           } catch {
                             // If backend delete fails, still remove local copy (MVP cache-first).
                           }

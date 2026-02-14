@@ -10,6 +10,7 @@ import { IconButton } from "../../components/IconButton";
 import { MapCanvas, type MapMarker } from "../../components/map/MapCanvas";
 import { lineStringDistanceMeters } from "../../editor/lineStringMetrics";
 import { loadRoutesCache, upsertCachedRoute, type CachedRoute } from "../../state/routesCache";
+import { withAuthRetry } from "../../state/session";
 import { tokens } from "../../theme/tokens";
 import { formatRelativeTime } from "../../utils/time";
 
@@ -32,7 +33,9 @@ export function RouteDetailsScreen(props: {
 
   async function refreshFromBackend() {
     try {
-      const remote = await getRoute({ accessToken: props.accessToken, routeId: props.routeId });
+      const remote = await withAuthRetry((token) =>
+        getRoute({ accessToken: token, routeId: props.routeId }),
+      );
       const updatedAt = new Date().toISOString();
       await upsertCachedRoute(remote, { updatedAt });
       await loadFromCache();
