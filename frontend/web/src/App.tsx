@@ -423,7 +423,7 @@ export default function App() {
       </header>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", minHeight: 0 }}>
-        <div ref={mapDivRef} style={{ minHeight: 0 }} />
+        <div ref={mapDivRef} style={{ minHeight: 0, height: "100%", width: "100%" }} />
 
         <aside style={{ borderLeft: "1px solid rgba(0,0,0,0.08)", padding: 12, background: "#fff", overflow: "auto" }}>
           <div style={{ display: "grid", gap: 12 }}>
