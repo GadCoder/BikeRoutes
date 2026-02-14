@@ -54,8 +54,8 @@ Mobile UI can start immediately with local/mocked data. API wiring requires `2.2
 
 Sharing requires routes to exist (`3.2`). Owner-only toggles require auth identity (`2.3`).
 
-- [ ] 5.1 Implement route visibility toggle (`is_public`) and share token generation.
-- [ ] 5.2 Implement `/api/routes/share/{token}` route access endpoint with not-found handling.
+- [x] 5.1 Implement route visibility toggle (`is_public`) and share token generation.
+- [x] 5.2 Implement `/api/routes/share/{token}` route access endpoint with not-found handling.
 
 ## 6. Post-MVP (Defer): Web Parity
 
