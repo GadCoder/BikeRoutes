@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
@@ -17,6 +17,7 @@ from app.auth.tokens import (
     hash_refresh_token,
     refresh_expires_at,
 )
+from app.core.rate_limit import limiter, RateLimits
 from app.db import get_db
 
 router = APIRouter(prefix="/auth")
@@ -73,8 +74,11 @@ async def _issue_session(*, db: AsyncSession, user: User) -> SessionOut:
 
 
 @router.post("/register", response_model=SessionOut)
+@limiter.limit(RateLimits.REGISTER)
 async def register(
-    payload: RegisterRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: RegisterRequest, 
+    db: AsyncSession = Depends(get_db)
 ) -> SessionOut:
     email = payload.email.strip().lower()
     user = User(email=email, password_hash=hash_password(payload.password))
@@ -84,7 +88,8 @@ async def register(
     except IntegrityError:
         await db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="email_already_registered"
+            status_code=status.HTTP_409_CONFLICT, 
+            detail="email_already_registered"
         )
 
     await db.refresh(user)
@@ -92,25 +97,33 @@ async def register(
 
 
 @router.post("/login", response_model=SessionOut)
+@limiter.limit(RateLimits.AUTH)
 async def login(
-    payload: LoginRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: LoginRequest, 
+    db: AsyncSession = Depends(get_db)
 ) -> SessionOut:
     email = payload.email.strip().lower()
     user = await db.scalar(select(User).where(User.email == email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="invalid_credentials"
         )
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="inactive_user"
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="inactive_user"
         )
     return await _issue_session(db=db, user=user)
 
 
 @router.post("/refresh", response_model=SessionOut)
+@limiter.limit(RateLimits.AUTH)
 async def refresh(
-    payload: RefreshRequest, db: AsyncSession = Depends(get_db)
+    request: Request,
+    payload: RefreshRequest, 
+    db: AsyncSession = Depends(get_db)
 ) -> SessionOut:
     now = datetime.now(timezone.utc)
     incoming_hash = hash_refresh_token(payload.refresh_token)
@@ -120,7 +133,8 @@ async def refresh(
     )
     if rt is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_refresh_token"
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="invalid_refresh_token"
         )
 
     # If a rotated/revoked token is reused, revoke all active refresh tokens for that user.
@@ -128,24 +142,28 @@ async def refresh(
         await db.execute(
             update(RefreshToken)
             .where(
-                RefreshToken.user_id == rt.user_id, RefreshToken.revoked_at.is_(None)
+                RefreshToken.user_id == rt.user_id, 
+                RefreshToken.revoked_at.is_(None)
             )
             .values(revoked_at=now, revoked_reason="reuse")
         )
         await db.commit()
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="refresh_reuse_detected"
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="refresh_reuse_detected"
         )
 
     if _as_utc(rt.expires_at) <= now:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="refresh_expired"
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="refresh_expired"
         )
 
     user = await db.scalar(select(User).where(User.id == rt.user_id))
     if user is None or not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="user_not_found"
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="user_not_found"
         )
 
     new_refresh_plain, new_refresh_hash = generate_refresh_token()
@@ -171,5 +189,9 @@ async def refresh(
 
 
 @router.get("/me", response_model=UserOut)
-async def me(user: User = Depends(get_current_user)) -> UserOut:
+@limiter.limit(RateLimits.DEFAULT)
+async def me(
+    request: Request,
+    user: User = Depends(get_current_user)
+) -> UserOut:
     return UserOut(id=str(user.id), email=user.email)
