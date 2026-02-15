@@ -13,7 +13,8 @@ const config: ApiClientConfig = {
   getToken: () => globalToken,
 };
 
-const client = new SharedApiClient(config);
+export const client = new SharedApiClient(config);
+export { SharedApiClient as ApiClient };
 
 // Auth API
 export async function login(email: string, password: string): Promise<Session> {
@@ -44,5 +45,17 @@ export async function updateRoute(id: string, data: any): Promise<Route> {
 export async function deleteRoute(id: string): Promise<void> {
   return client.request<void>(`/routes/${id}`, { method: "DELETE" });
 }
+
+// Legacy-friendly facade used by the stores/UI.
+export const api = {
+  setAccessToken,
+  login,
+  register,
+  listRoutes,
+  getRoute,
+  createRoute,
+  updateRoute,
+  deleteRoute,
+} as const;
 
 export { ApiError };

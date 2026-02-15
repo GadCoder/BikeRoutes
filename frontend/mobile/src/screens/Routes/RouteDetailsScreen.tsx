@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { GeoJSONPosition } from "../../../../shared/src";
-import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
-import { getRoute, type MarkerFeature, type RouteFeature } from "../../api/routes";
+import type { GeoJSONPosition } from "@bikeroutes/shared";
+import { isGeoJSONLineStringGeometry } from "@bikeroutes/shared";
+import { getRoute, type Marker, type Route } from "../../api/routes";
 import { Button } from "../../components/Button";
 import { DraggableSheet } from "../../components/DraggableSheet";
 import { IconButton } from "../../components/IconButton";
@@ -36,8 +36,7 @@ export function RouteDetailsScreen(props: {
       const remote = await withAuthRetry((token) =>
         getRoute({ accessToken: token, routeId: props.routeId }),
       );
-      const updatedAt = new Date().toISOString();
-      await upsertCachedRoute(remote, { updatedAt });
+      await upsertCachedRoute(remote);
       await loadFromCache();
     } catch {
       // Offline or forbidden: keep cached.
@@ -49,16 +48,16 @@ export function RouteDetailsScreen(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.routeId]);
 
-  const route: RouteFeature | null = entry?.route ?? null;
-  const title = route?.properties.title ?? "Route";
-  const description = route?.properties.description ?? "No description yet.";
+  const route: Route | null = entry?.route ?? null;
+  const title = route?.title ?? "Route";
+  const description = route?.description ?? "No description yet.";
 
-  const markers = (route?.properties.markers ?? []) as MarkerFeature[];
+  const markers = (route?.markers ?? []) as Marker[];
   const markersCount = markers.length;
 
   const distanceKm = useMemo(() => {
     if (!route) return 0;
-    const fromApi = route.properties.distance_km;
+    const fromApi = route.distance_km;
     if (typeof fromApi === "number" && Number.isFinite(fromApi)) return fromApi;
     if (isGeoJSONLineStringGeometry(route.geometry)) return lineStringDistanceMeters(route.geometry) / 1000;
     return 0;
@@ -67,13 +66,13 @@ export function RouteDetailsScreen(props: {
   const mapMarkers: MapMarker[] = useMemo(() => {
     return markers
       .map((m) => {
-        const coords = (m.geometry as any)?.coordinates as GeoJSONPosition | undefined;
+        const coords = m.geometry?.coordinates as GeoJSONPosition | undefined;
         if (!coords || coords.length < 2) return null;
         return {
           id: m.id,
           coordinate: coords,
-          iconType: String(m.properties.icon_type ?? "default"),
-          label: String(m.properties.label ?? ""),
+          iconType: String(m.icon_type ?? "default"),
+          label: String(m.label ?? ""),
         };
       })
       .filter(Boolean) as MapMarker[];
@@ -110,7 +109,7 @@ export function RouteDetailsScreen(props: {
               </View>
 
               <Text style={styles.subTitle}>
-                Created by you • {entry ? formatRelativeTime(entry.updatedAt) : "recently"}
+                Created by you • {entry ? formatRelativeTime(entry.route.updated_at || entry.cachedAt) : "recently"}
               </Text>
 
               <View style={styles.statsRow}>
@@ -214,9 +213,9 @@ function Section(props: { title: string; right?: ReactNode; children: ReactNode 
   );
 }
 
-function MarkerRow(props: { idx: number; marker: MarkerFeature }) {
-  const label = String(props.marker.properties.label ?? `Marker ${props.idx}`);
-  const iconType = String(props.marker.properties.icon_type ?? "default").toUpperCase();
+function MarkerRow(props: { idx: number; marker: Marker }) {
+  const label = String(props.marker.label ?? `Marker ${props.idx}`);
+  const iconType = String(props.marker.icon_type ?? "default").toUpperCase();
   return (
     <View style={styles.markerRow}>
       <View style={styles.markerIdx}>

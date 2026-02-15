@@ -20,6 +20,6 @@ export function AuthScreen() {
           </button>
         </p>
       </div>
-    </div㸂
+    </div>
   );
 }

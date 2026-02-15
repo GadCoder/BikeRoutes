@@ -1,9 +1,9 @@
-import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
-import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
+import { isGeoJSONLineStringGeometry } from "@bikeroutes/shared";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import { DraggableSheet } from "../../components/DraggableSheet";
-import { createMarker, createRoute, getRoute, updateMarker, updateRoute, type RouteFeature } from "../../api/routes";
+import { createMarker, createRoute, getRoute, updateMarker, updateRoute, type Route } from "../../api/routes";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { TextField } from "../../components/TextField";
@@ -102,9 +102,9 @@ export function EditorScreen(props: {
         );
         if (!mounted) return;
         if (isGeoJSONLineStringGeometry(r.geometry)) setHist(historyInit(r.geometry));
-        setRouteName(String(r.properties.title ?? ""));
-        setRouteNotes(String(r.properties.description ?? ""));
-        const markers = (r.properties.markers ?? []) as any[];
+        setRouteName(String(r.title ?? ""));
+        setRouteNotes(String(r.description ?? ""));
+        const markers = (r.markers ?? []) as any[];
         setDraftMarkers(
           markers
             .map((mf, idx) => {
@@ -114,10 +114,10 @@ export function EditorScreen(props: {
                 id: randomId(),
                 backendId: String(mf.id),
                 coordinate: coord,
-                label: String(mf?.properties?.label ?? ""),
-                iconType: String(mf?.properties?.icon_type ?? "default"),
-                description: String(mf?.properties?.description ?? ""),
-                orderIndex: typeof mf?.properties?.order_index === "number" ? mf.properties.order_index : idx,
+                label: String(mf?.label ?? ""),
+                iconType: String(mf?.icon_type ?? "default"),
+                description: String(mf?.description ?? ""),
+                orderIndex: typeof mf?.order_index === "number" ? mf.order_index : idx,
               } as DraftMarker;
             })
             .filter(Boolean) as DraftMarker[],
@@ -323,7 +323,7 @@ export function EditorScreen(props: {
                         markers: draftMarkers,
                       }),
                     );
-                    await upsertCachedRoute(saved, { updatedAt: new Date().toISOString() });
+                    await upsertCachedRoute(saved);
                     setSaveVisible(false);
                     props.onSaved(saved.id);
                   } catch (e) {
@@ -469,7 +469,7 @@ async function saveRouteToBackend(args: {
   description?: string;
   geometry: GeoJSONLineStringGeometry;
   markers: DraftMarker[];
-}): Promise<RouteFeature> {
+}): Promise<Route> {
   if (!args.accessToken) throw new Error("No access token");
 
   const route =
@@ -766,4 +766,3 @@ const styles = StyleSheet.create({
     fontWeight: tokens.font.weight.bold,
   },
 });
-

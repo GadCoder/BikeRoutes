@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { deleteRoute, listRoutes, type RouteFeature } from "../../api/routes";
+import { deleteRoute, listRoutes, type Route } from "../../api/routes";
 import { DraggableSheet } from "../../components/DraggableSheet";
 import { IconButton } from "../../components/IconButton";
 import { MapCanvas } from "../../components/map/MapCanvas";
@@ -17,7 +17,7 @@ import { tokens } from "../../theme/tokens";
 import { formatRelativeTime } from "../../utils/time";
 import { loadRoutesCache, removeCachedRoute, saveRoutesCache, type CachedRoute } from "../../state/routesCache";
 import { withAuthRetry } from "../../state/session";
-import { isGeoJSONLineStringGeometry } from "../../../../shared/src";
+import { isGeoJSONLineStringGeometry } from "@bikeroutes/shared";
 import { lineStringDistanceMeters } from "../../editor/lineStringMetrics";
 
 export function MyRoutesScreen(props: {
@@ -42,7 +42,7 @@ export function MyRoutesScreen(props: {
     try {
       setLoading(true);
       const remote = await withAuthRetry((token) =>
-        listRoutes({ accessToken: token, q: query.trim() || undefined }),
+        listRoutes({ accessToken: token }),
       );
       const merged = mergeRemoteIntoCache(remote, base ?? routes);
       setRoutes(sortCached(merged));
@@ -69,7 +69,7 @@ export function MyRoutesScreen(props: {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return routes;
-    return routes.filter((r) => (r.route.properties.title ?? "").toLowerCase().includes(q));
+    return routes.filter((r) => (r.route.title ?? "").toLowerCase().includes(q));
   }, [routes, query]);
 
   const empty = filtered.length === 0;
@@ -159,7 +159,7 @@ export function MyRoutesScreen(props: {
                   entry={r}
                   onPress={() => props.onOpenRoute(r.route.id)}
                   onDelete={() => {
-                    const title = r.route.properties.title ?? "Untitled route";
+                    const title = r.route.title ?? "Untitled route";
                     Alert.alert("Delete route?", `Delete "${title}" from My Routes?`, [
                       { text: "Cancel", style: "cancel" },
                       {
@@ -190,19 +190,19 @@ export function MyRoutesScreen(props: {
 }
 
 function RouteCard(props: { entry: CachedRoute; onPress: () => void; onDelete: () => void }) {
-  const title = props.entry.route.properties.title ?? "Untitled route";
-  const markersCount = props.entry.route.properties.markers?.length ?? 0;
+  const title = props.entry.route.title ?? "Untitled route";
+  const markersCount = props.entry.route.markers?.length ?? 0;
 
   const distanceKm = useMemo(() => {
-    const fromApi = props.entry.route.properties.distance_km;
+    const fromApi = props.entry.route.distance_km;
     if (typeof fromApi === "number" && Number.isFinite(fromApi)) return fromApi;
     if (isGeoJSONLineStringGeometry(props.entry.route.geometry)) {
       return lineStringDistanceMeters(props.entry.route.geometry) / 1000;
     }
     return 0;
-  }, [props.entry.route.geometry, props.entry.route.properties.distance_km]);
+  }, [props.entry.route.geometry, props.entry.route.distance_km]);
 
-  const rel = formatRelativeTime(props.entry.updatedAt);
+  const rel = formatRelativeTime(props.entry.route.updated_at || props.entry.cachedAt);
 
   return (
     <Pressable
@@ -249,15 +249,16 @@ function MetaChip(props: { icon: string; label: string }) {
 }
 
 function sortCached(routes: CachedRoute[]): CachedRoute[] {
-  return routes.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const key = (r: CachedRoute) => r.route.updated_at || r.cachedAt;
+  return routes.slice().sort((a, b) => key(b).localeCompare(key(a)));
 }
 
-function mergeRemoteIntoCache(remote: RouteFeature[], existing: CachedRoute[]): CachedRoute[] {
+function mergeRemoteIntoCache(remote: Route[], existing: CachedRoute[]): CachedRoute[] {
   const now = new Date().toISOString();
   const byId = new Map(existing.map((r) => [r.route.id, r] as const));
   for (const r of remote) {
     const prev = byId.get(r.id);
-    byId.set(r.id, { route: r, createdAt: prev?.createdAt ?? now, updatedAt: prev?.updatedAt ?? now });
+    byId.set(r.id, { route: r, cachedAt: prev?.cachedAt ?? now });
   }
   return [...byId.values()];
 }

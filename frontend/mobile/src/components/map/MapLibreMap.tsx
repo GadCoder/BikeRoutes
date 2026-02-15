@@ -44,7 +44,8 @@ export function MapLibreMap(props: {
   onPressCoordinate?: (pos: GeoJSONPosition) => void;
   controlsEnabled?: boolean;
 }) {
-  const cameraRef = useRef<MapLibreGL.Camera>(null);
+  // MapLibreGL.Camera is a runtime component, not a TS type.
+  const cameraRef = useRef<any>(null);
   const zoomRef = useRef<number>(DEFAULT_ZOOM);
 
   const center = useMemo((): GeoJSONPosition => {
@@ -99,8 +100,10 @@ export function MapLibreMap(props: {
       }}
       onPress={(e) => {
         if (!props.controlsEnabled) return;
-        const coords = e?.geometry?.coordinates as any;
-        if (!coords || coords.length < 2) return;
+        const g = (e as any)?.geometry as { type?: string; coordinates?: unknown } | undefined;
+        if (!g || g.type !== "Point") return;
+        const coords = g.coordinates as any;
+        if (!Array.isArray(coords) || coords.length < 2) return;
         props.onPressCoordinate?.([coords[0], coords[1]]);
       }}
     >

@@ -1,4 +1,4 @@
-import type { GeoJSONPosition } from "../../../shared/src";
+import type { GeoJSONPosition } from "@bikeroutes/shared";
 
 const EARTH_RADIUS_M = 6371000;
 
@@ -17,4 +17,3 @@ export function haversineMeters(a: GeoJSONPosition, b: GeoJSONPosition): number 
   const h = sinDLat * sinDLat + Math.cos(rLat1) * Math.cos(rLat2) * sinDLon * sinDLon;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
-
