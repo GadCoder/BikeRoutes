@@ -211,7 +211,7 @@
       "minzoom": 10,
       "layout": {
         "text-field": ["coalesce", ["get", "name_en"], ["get", "name:en"], ["get", "name"]],
-        "text-font": ["Noto Sans SemiBold"],
+        "text-font": ["Noto Sans Regular"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 10, 13, 14, 18],
         "text-allow-overlap": false
       },
