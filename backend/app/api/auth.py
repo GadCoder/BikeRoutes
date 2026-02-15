@@ -56,7 +56,7 @@ def _as_utc(dt: datetime) -> datetime:
 
 
 async def _issue_session(*, db: AsyncSession, user: User) -> SessionOut:
-    access_token = create_access_token(user_id=user.id)
+    access_token = create_access_token(user_id=str(user.id))
     refresh_plain, refresh_hash = generate_refresh_token()
 
     rt = RefreshToken(
@@ -182,7 +182,7 @@ async def refresh(
     await db.commit()
 
     return SessionOut(
-        access_token=create_access_token(user_id=user.id),
+        access_token=create_access_token(user_id=str(user.id)),
         refresh_token=new_refresh_plain,
         user=UserOut(id=str(user.id), email=user.email),
     )
