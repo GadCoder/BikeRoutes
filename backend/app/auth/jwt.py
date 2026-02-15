@@ -1,70 +1,86 @@
 from __future__ import annotations
 
-import base64
-import hashlib
-import hmac
-import json
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime, timezone, timedelta
+from typing import Any, Optional
+
+from jose import JWTError, jwt
+from pydantic import BaseModel
+
+from app.core.settings import settings
 
 
-class JWTError(Exception):
-    pass
+class JWTPayload(BaseModel):
+    """JWT payload structure."""
+    sub: str  # user_id
+    exp: Optional[datetime] = None
+    iat: Optional[datetime] = None
+    type: str = "access"  # access or refresh
 
 
-def _b64url_encode(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
-
-
-def _b64url_decode(s: str) -> bytes:
-    pad = "=" * ((4 - (len(s) % 4)) % 4)
-    return base64.urlsafe_b64decode((s + pad).encode("ascii"))
-
-
-def _sign_hs256(message: bytes, secret: str) -> bytes:
-    return hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
-
-
-def encode_hs256(payload: dict[str, Any], secret: str) -> str:
-    header = {"typ": "JWT", "alg": "HS256"}
-    header_b64 = _b64url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
-    payload_b64 = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
-    sig_b64 = _b64url_encode(_sign_hs256(signing_input, secret))
-    return f"{header_b64}.{payload_b64}.{sig_b64}"
-
-
-def decode_hs256(token: str, secret: str) -> dict[str, Any]:
-    try:
-        header_b64, payload_b64, sig_b64 = token.split(".", 2)
-    except ValueError as e:
-        raise JWTError("invalid_token") from e
-
-    signing_input = f"{header_b64}.{payload_b64}".encode("ascii")
-    expected = _sign_hs256(signing_input, secret)
-    try:
-        got = _b64url_decode(sig_b64)
-    except Exception as e:
-        raise JWTError("invalid_token") from e
-
-    if not hmac.compare_digest(expected, got):
-        raise JWTError("invalid_signature")
-
-    try:
-        payload = json.loads(_b64url_decode(payload_b64))
-    except Exception as e:
-        raise JWTError("invalid_payload") from e
-
-    exp = payload.get("exp")
-    if exp is not None:
+class JWTService:
+    """JWT service using python-jose."""
+    
+    def __init__(self, secret: str, algorithm: str = "HS256"):
+        self.secret = secret
+        self.algorithm = algorithm
+    
+    def encode(
+        self, 
+        user_id: str, 
+        expires_delta: Optional[timedelta] = None,
+        token_type: str = "access"
+    ) -> str:
+        """Create a JWT token."""
+        now = datetime.now(timezone.utc)
+        
+        payload: dict[str, Any] = {
+            "sub": user_id,
+            "iat": now,
+            "type": token_type,
+        }
+        
+        if expires_delta:
+            payload["exp"] = now + expires_delta
+        
+        return jwt.encode(payload, self.secret, algorithm=self.algorithm)
+    
+    def decode(self, token: str) -> JWTPayload:
+        """Decode and validate a JWT token."""
         try:
-            exp_dt = datetime.fromtimestamp(int(exp), tz=timezone.utc)
-        except Exception as e:
-            raise JWTError("invalid_exp") from e
-        if datetime.now(timezone.utc) >= exp_dt:
-            raise JWTError("expired")
+            payload = jwt.decode(token, self.secret, algorithms=[self.algorithm])
+            return JWTPayload(**payload)
+        except JWTError as e:
+            raise ValueError(f"Invalid token: {e}")
+    
+    def decode_without_validation(self, token: str) -> Optional[dict[str, Any]]:
+        """Decode token without validation (for debugging)."""
+        try:
+            return jwt.get_unverified_claims(token)
+        except JWTError:
+            return None
 
-    if not isinstance(payload, dict):
-        raise JWTError("invalid_payload")
+
+# Global JWT service instance
+jwt_service = JWTService(secret=settings.jwt_secret)
+
+
+def create_access_token(user_id: str, expires_minutes: int = 15) -> str:
+    """Create an access token for a user."""
+    return jwt_service.encode(
+        user_id=user_id,
+        expires_delta=timedelta(minutes=expires_minutes),
+        token_type="access"
+    )
+
+
+def decode_access_token(token: str) -> JWTPayload:
+    """Decode and validate an access token."""
+    payload = jwt_service.decode(token)
+    
+    if payload.type != "access":
+        raise ValueError("Invalid token type")
+    
+    if payload.exp and datetime.now(timezone.utc) >= payload.exp:
+        raise ValueError("Token expired")
+    
     return payload
-
