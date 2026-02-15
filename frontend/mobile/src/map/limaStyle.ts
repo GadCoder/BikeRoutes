@@ -225,5 +225,25 @@ export const LIMA_STYLE: any = {
         "line-opacity": 0.95,
       },
     },
+
+    // Road labels
+    {
+      id: "road-labels",
+      type: "symbol",
+      source: "lima",
+      "source-layer": "transportation_name",
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 11,
+        "text-font": ["Noto Sans Regular"],
+        "symbol-placement": "line",
+        "text-anchor": "center",
+      },
+      paint: {
+        "text-color": "#5f6368",
+        "text-halo-color": "#ffffff",
+        "text-halo-width": 1.5,
+      },
+    },
   ],
 };
