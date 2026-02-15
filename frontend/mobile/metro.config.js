@@ -3,6 +3,7 @@ const path = require("path");
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, "../..");
+const sharedRoot = path.resolve(projectRoot, "../shared");
 
 const config = getDefaultConfig(projectRoot);
 
@@ -14,6 +15,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
   path.resolve(monorepoRoot, "node_modules"),
 ];
+
+// Map @bikeroutes/shared to the shared workspace
+config.resolver.extraNodeModules = {
+  "@bikeroutes/shared": sharedRoot,
+};
 
 // Prevent Metro from looking beyond the monorepo root
 config.resolver.disableHierarchicalLookup = true;

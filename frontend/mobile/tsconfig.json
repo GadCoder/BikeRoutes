@@ -1,7 +1,11 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@bikeroutes/shared": ["../shared/src/index.ts"],
+      "@bikeroutes/shared/*": ["../shared/*"]
+    }
   }
 }
 
