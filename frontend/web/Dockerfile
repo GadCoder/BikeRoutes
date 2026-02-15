@@ -15,6 +15,7 @@ COPY frontend/shared/src frontend/shared/src
 COPY frontend/web/tsconfig.json frontend/web/tsconfig.json
 COPY frontend/web/vite.config.ts frontend/web/vite.config.ts
 COPY frontend/web/index.html frontend/web/index.html
+COPY frontend/shared/map/style.base.json frontend/web/public/map/style.json
 COPY frontend/web/public frontend/web/public
 COPY frontend/web/src frontend/web/src
 
