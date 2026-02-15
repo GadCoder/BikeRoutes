@@ -5,10 +5,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-bikeroutes}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bikeroutes}
       POSTGRES_DB: ${POSTGRES_DB:-bikeroutes}
+      # Additional test database will be created via init script
+      POSTGRES_TEST_DB: ${POSTGRES_TEST_DB:-bikeroutes_test}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./backend/scripts/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh:ro
 
   backend:
     build:
@@ -31,11 +34,8 @@ services:
     command: ["--listen-addresses", "0.0.0.0:3000"]
     ports:
       - "${MARTIN_PORT:-3000}:3000"
-    # For MVP this is just a placeholder service. You'll mount PMTiles/MBTiles and/or
-    # configure sources in a follow-up change.
     volumes:
       - ./maps:/maps
 
 volumes:
   db_data:
-
