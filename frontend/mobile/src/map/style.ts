@@ -5,14 +5,10 @@ export type MapStyle = any;
 
 /**
  * Mobile-specific layer overrides to protect performance on devices.
- * Increases minzoom for dense label layers and adjusts density.
+ * Base style already has premium optimizations; these are mobile-specific tweaks.
  */
 const MOBILE_LAYER_OVERRIDES: Record<string, any> = {
-  // Reduce label density on mobile by pushing POI labels to higher zoom
-  "poi-label": {
-    minzoom: 15, // Base is 14, mobile waits until 15
-  },
-  // Place labels - keep allow-overlap false
+  // Place labels - prevent overlap on small screens
   "place-label": {
     layout: {
       "text-allow-overlap": false,

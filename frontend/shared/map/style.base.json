@@ -17,7 +17,7 @@
     {
       "id": "background",
       "type": "background",
-      "paint": { "background-color": "#dbeafe" }
+      "paint": { "background-color": "#f8fafc" }
     },
     {
       "id": "landcover",
@@ -34,7 +34,7 @@
           "#dcfce7",
           "scrub",
           "#d1fae5",
-          "#eef2f7"
+          "#f1f5f9"
         ],
         "fill-opacity": 0.9
       }
@@ -72,14 +72,14 @@
       "type": "fill",
       "source": "lima",
       "source-layer": "park",
-      "paint": { "fill-color": "#a7f3d0", "fill-opacity": 0.9 }
+      "paint": { "fill-color": "#bbf7d0", "fill-opacity": 0.75 }
     },
     {
       "id": "water",
       "type": "fill",
       "source": "lima",
       "source-layer": "water",
-      "paint": { "fill-color": "#93c5fd", "fill-opacity": 0.95 }
+      "paint": { "fill-color": "#cfe8ff", "fill-opacity": 0.95 }
     },
     {
       "id": "waterway",
@@ -106,6 +106,18 @@
       }
     },
     {
+      "id": "building",
+      "type": "fill",
+      "source": "lima",
+      "source-layer": "building",
+      "minzoom": 14,
+      "paint": {
+        "fill-color": "#e5e7eb",
+        "fill-opacity": 0.6,
+        "fill-outline-color": "rgba(148,163,184,0.3)"
+      }
+    },
+    {
       "id": "road-casing",
       "type": "line",
       "source": "lima",
@@ -115,11 +127,12 @@
         "line-color": "rgba(15, 23, 42, 0.25)",
         "line-width": ["interpolate", ["linear"], ["zoom"], 10, 1.2, 14, 7.0, 16, 12.0],
         "line-opacity": [
-          "match",
-          ["get", "class"],
-          ["motorway", "trunk", "primary", "secondary"],
-          0.25,
-          0.12
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          10, 0.05,
+          14, 0.18,
+          16, 0.25
         ]
       }
     },
@@ -133,26 +146,16 @@
         "line-color": [
           "match",
           ["get", "class"],
-          "motorway",
-          "#f97316",
-          "trunk",
-          "#fb7185",
-          "primary",
-          "#fb7185",
-          "secondary",
-          "#fbbf24",
-          "tertiary",
-          "#fde68a",
-          "minor",
-          "#ffffff",
-          "service",
-          "#ffffff",
-          "path",
-          "#cbd5e1",
-          "track",
-          "#cbd5e1",
-          "rail",
-          "#64748b",
+          "motorway", "#f59e0b",
+          "trunk", "#f59e0b",
+          "primary", "#f1f5f9",
+          "secondary", "#f8fafc",
+          "tertiary", "#ffffff",
+          "minor", "#ffffff",
+          "service", "#ffffff",
+          "path", "#94a3b8",
+          "track", "#94a3b8",
+          "rail", "#64748b",
           "#ffffff"
         ],
         "line-width": [
@@ -170,19 +173,32 @@
       }
     },
     {
+      "id": "bike-path-accent",
+      "type": "line",
+      "source": "lima",
+      "source-layer": "transportation",
+      "filter": ["in", ["get", "class"], ["literal", ["path", "cycleway"]]],
+      "paint": {
+        "line-color": "#22c55e",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1.2, 16, 3],
+        "line-opacity": 0.6
+      }
+    },
+    {
       "id": "road-labels",
       "type": "symbol",
       "source": "lima",
       "source-layer": "transportation_name",
       "layout": {
         "text-field": ["get", "name"],
-        "text-size": 11,
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 16, 12],
         "text-font": ["Noto Sans Regular"],
         "symbol-placement": "line",
-        "text-anchor": "center"
+        "text-anchor": "center",
+        "text-letter-spacing": 0.05
       },
       "paint": {
-        "text-color": "#5f6368",
+        "text-color": "#64748b",
         "text-halo-color": "#ffffff",
         "text-halo-width": 1.5
       }
@@ -196,13 +212,13 @@
       "layout": {
         "text-field": ["coalesce", ["get", "name_en"], ["get", "name:en"], ["get", "name"]],
         "text-font": ["Noto Sans Regular"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 12, 14, 16],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 13, 14, 18],
         "text-allow-overlap": false
       },
       "paint": {
         "text-color": "#0f172a",
         "text-halo-color": "rgba(255,255,255,0.9)",
-        "text-halo-width": 1.2
+        "text-halo-width": 1.4
       }
     },
     {
@@ -210,7 +226,7 @@
       "type": "symbol",
       "source": "lima",
       "source-layer": "poi",
-      "minzoom": 14,
+      "minzoom": 15,
       "layout": {
         "text-field": ["coalesce", ["get", "name_en"], ["get", "name:en"], ["get", "name"]],
         "text-font": ["Noto Sans Regular"],
@@ -218,7 +234,7 @@
         "text-allow-overlap": false
       },
       "paint": {
-        "text-color": "#334155",
+        "text-color": "#64748b",
         "text-halo-color": "rgba(255,255,255,0.9)",
         "text-halo-width": 1.0
       }
