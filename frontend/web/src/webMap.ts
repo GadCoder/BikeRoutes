@@ -1,5 +1,14 @@
-import maplibregl, { type Map, type MapMouseEvent, type LngLatLike } from "maplibre-gl";
-import type { GeoJSONLineStringGeometry, GeoJSONPointGeometry, GeoJSONPosition } from "@bikeroutes/shared";
+import maplibregl, {
+  type Map,
+  type MapMouseEvent,
+  type LngLatLike,
+} from "maplibre-gl";
+import type {
+  GeoJSONLineStringGeometry,
+  GeoJSONPointGeometry,
+  GeoJSONPosition,
+} from "@bikeroutes/shared";
+import BASE_STYLE from "@bikeroutes/shared/map/style.base.json";
 
 export type WebMapHandle = {
   map: Map;
@@ -24,13 +33,17 @@ export function createWebMap(args: {
 }): WebMapHandle {
   const map = new maplibregl.Map({
     container: args.container,
-    style: "/map/style.json",
+    style: BASE_STYLE as any,
     center: args.center,
     zoom: args.zoom,
     maxZoom: 17,
   });
+  (window as any).map = map; // for debugging
 
-  map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  map.addControl(
+    new maplibregl.NavigationControl({ visualizePitch: true }),
+    "top-right",
+  );
 
   let line: GeoJSONLineStringGeometry = { type: "LineString", coordinates: [] };
   let markers: GeoJSONPointGeometry[] = [];

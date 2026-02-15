@@ -5,7 +5,7 @@ import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 import type { MapMarker } from "./MapCanvas";
 
-import { LIMA_STYLE } from "../../map/limaStyle";
+import { getMobileStyle } from "../../map/style";
 
 // Required once per app lifetime — no access token needed for self-hosted tiles.
 MapLibreGL.setAccessToken(null as any);
@@ -86,7 +86,7 @@ export function MapLibreMap(props: {
 
   return (
     <MapLibreGL.MapView
-      mapStyle={JSON.stringify(LIMA_STYLE)}
+      mapStyle={JSON.stringify(getMobileStyle())}
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
