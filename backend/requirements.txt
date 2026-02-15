@@ -7,3 +7,5 @@ alembic
 asyncpg
 psycopg[binary,pool]
 GeoAlchemy2
+python-jose[cryptography]==3.3.0
+slowapi==0.1.9
