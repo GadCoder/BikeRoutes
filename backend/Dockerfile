@@ -8,7 +8,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN python -m pip install --no-cache-dir uv
 
 COPY requirements.txt ./requirements.txt
+COPY pyproject.toml ./pyproject.toml
 RUN uv pip install --system -r requirements.txt
+RUN uv pip install --system python-jose[cryptography]==3.3.0 slowapi==0.1.9
 
 COPY . .
 
