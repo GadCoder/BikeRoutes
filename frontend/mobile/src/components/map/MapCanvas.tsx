@@ -1,4 +1,4 @@
-import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 import { MapLibreMap } from "./MapLibreMap";
 
 export type MapMarker = {

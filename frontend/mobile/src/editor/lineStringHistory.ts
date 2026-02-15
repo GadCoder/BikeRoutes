@@ -1,4 +1,4 @@
-import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 
 export type LineStringDraft = GeoJSONLineStringGeometry;
 
@@ -63,4 +63,3 @@ export function historyRedo(h: HistoryState): HistoryState {
 export function appendVertex(d: LineStringDraft, p: GeoJSONPosition): LineStringDraft {
   return { type: "LineString", coordinates: [...d.coordinates, [p[0], p[1]]] };
 }
-

@@ -1,4 +1,3 @@
-import { apiBaseUrl } from "./config";
 import { apiFetch } from "./http";
 
 export interface SessionOut {
@@ -36,4 +35,21 @@ export async function apiRefresh(refreshToken: string): Promise<SessionOut> {
 
 export async function apiMe(accessToken: string): Promise<UserOut> {
   return apiFetch<UserOut>("/auth/me", { accessToken });
+}
+
+// Convenience wrappers used by `src/state/session.ts` (object-arg style).
+export function login(args: { email: string; password: string }): Promise<SessionOut> {
+  return apiLogin(args.email, args.password);
+}
+
+export function register(args: { email: string; password: string }): Promise<SessionOut> {
+  return apiRegister(args.email, args.password);
+}
+
+export function refresh(args: { refreshToken: string }): Promise<SessionOut> {
+  return apiRefresh(args.refreshToken);
+}
+
+export function me(args: { accessToken: string }): Promise<UserOut> {
+  return apiMe(args.accessToken);
 }

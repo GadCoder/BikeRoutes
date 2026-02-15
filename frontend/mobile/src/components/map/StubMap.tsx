@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { LayoutChangeEvent, StyleSheet, Text, View } from "react-native";
-import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "../../../../shared/src";
+import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
 import { tokens } from "../../theme/tokens";
 import type { MapMarker } from "./MapCanvas";
 
@@ -89,9 +89,9 @@ export function StubMap(props: {
       }}
     >
       <View style={styles.grid} pointerEvents="none" />
-      <Text style={styles.watermark} pointerEvents="none">
-        MAP (STUB)
-      </Text>
+      <View style={styles.watermark} pointerEvents="none">
+        <Text style={styles.watermarkText}>MAP (STUB)</Text>
+      </View>
 
       <View style={styles.drawLayer} pointerEvents="none">
         {segments.map((s, idx) => (
@@ -153,6 +153,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: tokens.space.xl,
     alignSelf: "center",
+  },
+  watermarkText: {
     fontSize: 12,
     letterSpacing: tokens.font.letterSpacing.wideCapsSm,
     color: tokens.color.textMuted,

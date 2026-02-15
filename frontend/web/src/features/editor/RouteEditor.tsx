@@ -1,15 +1,19 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
+import { useState, useRef, useEffect } from "react";
+import type {
+  GeoJSONLineStringGeometry,
+  GeoJSONPointGeometry,
+  GeoJSONPosition,
+} from "@bikeroutes/shared";
 import { createWebMap, type WebMapHandle } from "../../webMap";
 
 interface RouteEditorProps {
   initialGeometry?: GeoJSONLineStringGeometry;
-  initialMarkers?: any[];
+  initialMarkers?: GeoJSONPointGeometry[];
   onSave: (data: {
     title: string;
     description: string;
     geometry: GeoJSONLineStringGeometry;
-    markers: any[];
+    markers: GeoJSONPointGeometry[];
   }) => void;
   onCancel: () => void;
 }
@@ -48,7 +52,7 @@ export function RouteEditor({ initialGeometry, initialMarkers, onSave, onCancel 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [history, setHistory] = useState(() => 
-    historyInit<{ geometry: GeoJSONLineStringGeometry; markers: any[] }>({
+    historyInit<{ geometry: GeoJSONLineStringGeometry; markers: GeoJSONPointGeometry[] }>({
       geometry: initialGeometry || emptyLine(),
       markers: initialMarkers || [],
     })
@@ -60,35 +64,52 @@ export function RouteEditor({ initialGeometry, initialMarkers, onSave, onCancel 
   useEffect(() => {
     if (!mapRef.current) return;
     
-    webMapRef.current = createWebMap(mapRef.current, {
+    webMapRef.current = createWebMap({
+      container: mapRef.current,
       center: [-77.0428, -12.0464],
       zoom: 12,
+      onMapClick: (e) => {
+        const pos: GeoJSONPosition = [e.lngLat.lng, e.lngLat.lat];
+        setHistory((h) =>
+          historyPush(h, {
+            geometry: {
+              ...h.present.geometry,
+              coordinates: [...h.present.geometry.coordinates, pos],
+            },
+            markers: h.present.markers,
+          }),
+        );
+      },
+      onVertexDrag: ({ index, lngLat }) => {
+        // Drag updates are frequent; update the present state without pushing to history.
+        setHistory((h) => {
+          const coords = h.present.geometry.coordinates.slice();
+          coords[index] = lngLat;
+          return {
+            ...h,
+            present: {
+              ...h.present,
+              geometry: { ...h.present.geometry, coordinates: coords },
+            },
+          };
+        });
+      },
     });
 
     return () => {
-      webMapRef.current?.destroy();
+      webMapRef.current?.map.remove();
+      webMapRef.current = null;
     };
   }, []);
 
   // Update map when geometry/markers change
   useEffect(() => {
-    webMapRef.current?.setRoute(geometry, markers);
+    webMapRef.current?.setLine(geometry);
+    webMapRef.current?.setMarkers(markers);
   }, [geometry, markers]);
 
   const canUndo = history.past.length > 0;
   const canRedo = history.future.length > 0;
-
-  const pushState = useCallback((next: { geometry: GeoJSONLineStringGeometry; markers: any[] }) => {
-    setHistory((h) => historyPush(h, next));
-  }, []);
-
-  const handleMapClick = useCallback((pos: GeoJSONPosition) => {
-    const newCoords = [...geometry.coordinates, pos];
-    pushState({
-      geometry: { ...geometry, coordinates: newCoords },
-      markers,
-    });
-  }, [geometry, markers, pushState]);
 
   const handleUndo = () => setHistory(historyUndo);
   const handleRedo = () => setHistory(historyRedo);
@@ -148,10 +169,6 @@ export function RouteEditor({ initialGeometry, initialMarkers, onSave, onCancel 
       <div 
         ref={mapRef} 
         className="editor-map"
-        onClick={(e) => {
-          // Handle map clicks for adding points
-          // This would be wired to the map instance
-        }}
       />
     </div>
   );

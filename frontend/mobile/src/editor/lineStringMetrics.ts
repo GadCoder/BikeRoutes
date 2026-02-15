@@ -1,4 +1,4 @@
-import type { GeoJSONLineStringGeometry } from "../../../shared/src";
+import type { GeoJSONLineStringGeometry } from "@bikeroutes/shared";
 import { haversineMeters } from "./haversine";
 
 export function lineStringDistanceMeters(g: GeoJSONLineStringGeometry): number {
@@ -23,4 +23,3 @@ export function formatDistanceKm(meters: number): string {
 export function formatVertices(count: number): string {
   return `${count} pts`;
 }
-
