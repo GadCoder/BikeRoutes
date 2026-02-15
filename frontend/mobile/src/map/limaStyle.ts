@@ -1,6 +1,7 @@
 export const LIMA_STYLE: any = {
   version: 8,
   name: "BikeRoutes Lima (mobile)",
+  glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
     lima: {
       type: "vector",
