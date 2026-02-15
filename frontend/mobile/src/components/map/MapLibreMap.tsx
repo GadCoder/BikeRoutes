@@ -1,5 +1,5 @@
 import MapLibreGL from "@maplibre/maplibre-react-native";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useEffect } from "react";
 
 import type { Feature, FeatureCollection, LineString, Point } from "geojson";
 import type { GeoJSONLineStringGeometry, GeoJSONPosition } from "@bikeroutes/shared";
@@ -45,14 +45,24 @@ export function MapLibreMap(props: {
   controlsEnabled?: boolean;
 }) {
   const cameraRef = useRef<MapLibreGL.Camera>(null);
-  const [currentZoom, setCurrentZoom] = useState<number | null>(null);
+  const zoomRef = useRef<number>(DEFAULT_ZOOM);
 
   const center = useMemo((): GeoJSONPosition => {
     const coords = props.geometry.coordinates;
     if (coords.length > 0) return coords[coords.length - 1]!;
-    // Lima
     return [-77.0428, -12.0464];
   }, [props.geometry.coordinates]);
+
+  // Only move camera center when geometry changes, preserve zoom
+  useEffect(() => {
+    if (cameraRef.current) {
+      cameraRef.current.setCamera({
+        centerCoordinate: center as any,
+        zoomLevel: zoomRef.current,
+        animationDuration: 0,
+      });
+    }
+  }, [center]);
 
   const hasLine = props.geometry.coordinates.length >= 2;
 
@@ -80,6 +90,13 @@ export function MapLibreMap(props: {
       style={{ flex: 1 }}
       logoEnabled={false}
       attributionEnabled={false}
+      onRegionDidChange={(e) => {
+        // Track zoom level from region changes
+        const zoom = e?.properties?.zoomLevel;
+        if (typeof zoom === 'number') {
+          zoomRef.current = zoom;
+        }
+      }}
       onPress={(e) => {
         if (!props.controlsEnabled) return;
         const coords = e?.geometry?.coordinates as any;
@@ -90,15 +107,8 @@ export function MapLibreMap(props: {
       <MapLibreGL.Camera
         ref={cameraRef}
         centerCoordinate={center as any}
-        zoomLevel={currentZoom ?? DEFAULT_ZOOM}
+        zoomLevel={DEFAULT_ZOOM}
         animationDuration={0}
-        onUserTrackingModeChange={(e) => {
-          // Track zoom changes from user gestures
-          const newZoom = e?.nativeEvent?.payload?.zoomLevel;
-          if (typeof newZoom === 'number') {
-            setCurrentZoom(newZoom);
-          }
-        }}
       />
 
       {/* Route line */}
