@@ -1,28 +1,17 @@
-# BikeRoutes Tile Server + Fonts
-# Deploy this via Dokploy Compose
-
 services:
   tileserver:
-    image: maptiler/tileserver-gl:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.tileserver
     volumes:
       - tiles_data:/data
-      - ./fonts:/data/fonts:ro
-      - ./config.json:/data/config.json:ro
-    command:
-      - --config
-      - /data/config.json
-      - --port
-      - "8080"
-      - --bind
-      - "0.0.0.0"
     restart: unless-stopped
     networks:
       - dokploy-network
 
 volumes:
   tiles_data:
-    # This volume should already exist from previous planetiler run
-    # and contain lima.mbtiles
+    external: true
 
 networks:
   dokploy-network:

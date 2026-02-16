@@ -1,0 +1,11 @@
+FROM maptiler/tileserver-gl:latest
+
+# Copy fonts into the image
+COPY fonts/ /data/fonts/
+COPY config.json /data/config.json
+
+# Ensure proper permissions
+RUN chmod -R 644 /data/fonts/*/*.pbf && chmod 644 /data/config.json
+
+# Use config file by default
+CMD ["--config", "/data/config.json", "--port", "8080", "--bind", "0.0.0.0"]
