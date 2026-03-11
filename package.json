@@ -17,6 +17,7 @@
     "dev:mobile": "npm --workspace frontend/mobile run start",
     "lint:web": "npm --workspace frontend/web run lint",
     "typecheck:web": "npm --workspace frontend/web run typecheck",
+    "test:auth-screens": "node --test frontend/tests/google_only_auth_screens.test.mjs",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },

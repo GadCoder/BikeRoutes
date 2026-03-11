@@ -9,7 +9,7 @@
 
 - [x] 2.1 Remove backend `/auth/login` interactive password sign-in behavior
 - [x] 2.2 Remove backend `/auth/register` interactive password registration behavior
-- [ ] 2.3 Remove backend password hashing/verification code paths that are no longer used by interactive auth endpoints
+- [x] 2.3 Remove backend password hashing/verification code paths that are no longer used by interactive auth endpoints
 - [x] 2.4 Remove or update API client methods in web and mobile that call legacy credential endpoints
 
 ## 3. Web Google-Only Sign-In UX
@@ -30,5 +30,5 @@
 
 - [x] 5.1 Add backend tests for valid Google token exchange, invalid token rejection, and no session issuance on failure
 - [x] 5.2 Add regression tests confirming legacy credential auth endpoints no longer authenticate users
-- [ ] 5.3 Add web/mobile tests verifying auth screen only exposes Google Sign-In and no credential inputs
+- [x] 5.3 Add web/mobile tests verifying auth screen only exposes Google Sign-In and no credential inputs
 - [x] 5.4 Update environment/config docs for Google OAuth client IDs and backend verification settings for web and mobile

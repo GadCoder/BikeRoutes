@@ -8,18 +8,53 @@ export type GoogleSignInHandler = () => Promise<GoogleSignInResult>;
 
 let googleSignInHandler: GoogleSignInHandler | null = null;
 
-function configuredClientId(): string {
-  const envClientId = String((process.env as any)?.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim();
-  if (envClientId) return envClientId;
-  return String((Constants.expoConfig?.extra as any)?.googleOauthClientId ?? "").trim();
+type GoogleClientIds = {
+  webClientId: string;
+  iosClientId: string;
+  androidClientId: string;
+  expoClientId: string;
+};
+
+function readExtra(name: string): string {
+  return String((Constants.expoConfig?.extra as any)?.[name] ?? "").trim();
+}
+
+function configuredClientIds(): GoogleClientIds {
+  const sharedClientId = String((process.env as any)?.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim();
+  return {
+    webClientId:
+      String((process.env as any)?.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "").trim() ||
+      sharedClientId ||
+      readExtra("googleWebClientId") ||
+      readExtra("googleOauthClientId"),
+    iosClientId:
+      String((process.env as any)?.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? "").trim() ||
+      readExtra("googleIosClientId"),
+    androidClientId:
+      String((process.env as any)?.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? "").trim() ||
+      readExtra("googleAndroidClientId"),
+    expoClientId:
+      String((process.env as any)?.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID ?? "").trim() ||
+      readExtra("googleExpoClientId"),
+  };
+}
+
+export function getGoogleSignInClientIds(): GoogleClientIds {
+  return configuredClientIds();
 }
 
 export function isGoogleSignInConfigured(): boolean {
-  return configuredClientId().length > 0;
+  const ids = configuredClientIds();
+  return (
+    ids.webClientId.length > 0 ||
+    ids.iosClientId.length > 0 ||
+    ids.androidClientId.length > 0 ||
+    ids.expoClientId.length > 0
+  );
 }
 
 export function googleSignInSetupMessage(): string {
-  return "Google Sign-In is not configured. Set EXPO_PUBLIC_GOOGLE_CLIENT_ID (or app.json extra.googleOauthClientId).";
+  return "Google Sign-In is not configured. Set EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and platform IDs (EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID / EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) or app.json extras.";
 }
 
 export function configureGoogleSignIn(handler: GoogleSignInHandler): void {

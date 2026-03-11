@@ -23,16 +23,6 @@ from app.db import get_db
 router = APIRouter(prefix="/auth")
 
 
-class RegisterRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
-    password: str = Field(min_length=8, max_length=128)
-
-
-class LoginRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=320)
-    password: str = Field(min_length=1, max_length=128)
-
-
 class GoogleExchangeRequest(BaseModel):
     id_token: str = Field(min_length=20, max_length=8192)
 
@@ -81,9 +71,8 @@ async def _issue_session(*, db: AsyncSession, user: User) -> SessionOut:
 @limiter.limit(RateLimits.REGISTER)
 async def register(
     request: Request,
-    payload: RegisterRequest,
 ) -> SessionOut:
-    _ = request, payload
+    _ = request
     raise HTTPException(
         status_code=status.HTTP_410_GONE,
         detail="password_auth_disabled",
@@ -94,9 +83,8 @@ async def register(
 @limiter.limit(RateLimits.AUTH)
 async def login(
     request: Request,
-    payload: LoginRequest,
 ) -> SessionOut:
-    _ = request, payload
+    _ = request
     raise HTTPException(
         status_code=status.HTTP_410_GONE,
         detail="password_auth_disabled",

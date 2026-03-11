@@ -45,5 +45,9 @@ The geometry contract used by the editor is GeoJSON `LineString` (`type: "LineSt
 
 - Backend expects `GOOGLE_CLIENT_IDS` to be configured (comma-separated if both web/mobile client IDs are accepted).
 - Web auth screen requires `VITE_GOOGLE_CLIENT_ID`.
-- Mobile auth flow requires `EXPO_PUBLIC_GOOGLE_CLIENT_ID`.
-- Mobile currently includes a Google sign-in integration hook and backend exchange path; the platform SDK handler must be wired in app code before Google sign-in can complete.
+- Mobile auth flow requires:
+  - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+  - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+  - `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
+  - optional `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID` (Expo Go/proxy flow)
+- Mobile app can also read fallback values from `frontend/mobile/app.json` `expo.extra.*` fields.

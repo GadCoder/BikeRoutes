@@ -21,7 +21,10 @@ This repo is designed to be deployed with **Dokploy**.
 - `VITE_GOOGLE_CLIENT_ID` (Google OAuth web client ID for Google Identity Services)
 
 ### Mobile
-- `EXPO_PUBLIC_GOOGLE_CLIENT_ID` (Google OAuth client ID used by mobile Google sign-in integration)
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Google OAuth web client ID used for ID token issuance)
+- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (Google OAuth iOS client ID for native iOS sign-in)
+- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` (Google OAuth Android client ID for native Android sign-in)
+- `EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID` (optional Expo Go/proxy client ID)
 
 ## Dokploy layout (recommended)
 - Project: `BikeRoutes`

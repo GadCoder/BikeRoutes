@@ -46,6 +46,44 @@ async def test_google_exchange_creates_session_and_supports_me(client, monkeypat
 
 
 @pytest.mark.asyncio
+async def test_google_exchange_refresh_lifecycle(client, monkeypatch):
+    identity = GoogleIdentity(
+        sub=f"sub-{uuid.uuid4()}",
+        email="cycle@example.com",
+        email_verified=True,
+        issuer="https://accounts.google.com",
+        audience="test-client-id",
+    )
+    _mock_google_verifier(monkeypatch, identity=identity)
+
+    exchange = await client.post("/api/auth/google", json={"id_token": "fake-token"})
+    assert exchange.status_code == 200, exchange.text
+    initial = exchange.json()
+
+    refresh = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": initial["refresh_token"]},
+    )
+    assert refresh.status_code == 200, refresh.text
+    rotated = refresh.json()
+    assert rotated["refresh_token"] != initial["refresh_token"]
+
+    me = await client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {rotated['access_token']}"},
+    )
+    assert me.status_code == 200, me.text
+    assert me.json()["email"] == "cycle@example.com"
+
+    reused = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": initial["refresh_token"]},
+    )
+    assert reused.status_code == 401, reused.text
+    assert reused.json()["detail"] == "refresh_reuse_detected"
+
+
+@pytest.mark.asyncio
 async def test_google_exchange_links_existing_user_by_email(client, db_session, monkeypatch):
     existing = User(email="existing@example.com", password_hash="!", google_sub=None)
     db_session.add(existing)

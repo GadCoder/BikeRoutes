@@ -10,8 +10,11 @@
       "web"
     ],
     "extra": {
-      "googleAuthEnabled": false,
-      "googleOauthClientId": ""
+      "googleOauthClientId": "",
+      "googleWebClientId": "",
+      "googleIosClientId": "",
+      "googleAndroidClientId": "",
+      "googleExpoClientId": ""
     },
     "plugins": [
       "expo-asset",
