@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import secrets
 
+# TODO(google-only-auth): Remove this module once all password auth code paths are deleted.
+
 _PBKDF2_ALG = "sha256"
 _PBKDF2_ITERS = 210_000
 _SALT_BYTES = 16
@@ -28,4 +30,3 @@ def verify_password(password: str, stored: str) -> bool:
 
     actual = hashlib.pbkdf2_hmac(_PBKDF2_ALG, password.encode("utf-8"), salt, iters)
     return hmac.compare_digest(actual, expected)
-

@@ -9,8 +9,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.deps import get_current_user
+from app.auth.google import GoogleTokenVerificationError, verify_google_id_token
 from app.auth.models import RefreshToken, User
-from app.auth.passwords import hash_password, verify_password
 from app.auth.tokens import (
     create_access_token,
     generate_refresh_token,
@@ -31,6 +31,10 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=1, max_length=128)
+
+
+class GoogleExchangeRequest(BaseModel):
+    id_token: str = Field(min_length=20, max_length=8192)
 
 
 class RefreshRequest(BaseModel):
@@ -77,44 +81,77 @@ async def _issue_session(*, db: AsyncSession, user: User) -> SessionOut:
 @limiter.limit(RateLimits.REGISTER)
 async def register(
     request: Request,
-    payload: RegisterRequest, 
-    db: AsyncSession = Depends(get_db)
+    payload: RegisterRequest,
 ) -> SessionOut:
-    email = payload.email.strip().lower()
-    user = User(email=email, password_hash=hash_password(payload.password))
-    db.add(user)
-    try:
-        await db.commit()
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, 
-            detail="email_already_registered"
-        )
-
-    await db.refresh(user)
-    return await _issue_session(db=db, user=user)
+    _ = request, payload
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="password_auth_disabled",
+    )
 
 
 @router.post("/login", response_model=SessionOut)
 @limiter.limit(RateLimits.AUTH)
 async def login(
     request: Request,
-    payload: LoginRequest, 
-    db: AsyncSession = Depends(get_db)
+    payload: LoginRequest,
 ) -> SessionOut:
-    email = payload.email.strip().lower()
-    user = await db.scalar(select(User).where(User.email == email))
-    if user is None or not verify_password(payload.password, user.password_hash):
+    _ = request, payload
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="password_auth_disabled",
+    )
+
+
+@router.post("/google", response_model=SessionOut)
+@limiter.limit(RateLimits.AUTH)
+async def google_exchange(
+    request: Request,
+    payload: GoogleExchangeRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SessionOut:
+    try:
+        identity = verify_google_id_token(payload.id_token)
+    except GoogleTokenVerificationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="invalid_credentials"
-        )
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+    user = await db.scalar(select(User).where(User.google_sub == identity.sub))
+    if user is None:
+        user = await db.scalar(select(User).where(User.email == identity.email))
+        if user is not None and user.google_sub and user.google_sub != identity.sub:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="google_identity_conflict",
+            )
+        if user is None:
+            user = User(
+                email=identity.email,
+                google_sub=identity.sub,
+                password_hash="!",
+            )
+            db.add(user)
+        else:
+            user.google_sub = identity.sub
+
+        try:
+            await db.commit()
+        except IntegrityError as exc:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="google_identity_conflict",
+            ) from exc
+        await db.refresh(user)
+
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="inactive_user"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="inactive_user",
         )
+
     return await _issue_session(db=db, user=user)
 
 

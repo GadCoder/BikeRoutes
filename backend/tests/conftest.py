@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 import os
 import uuid
 from typing import AsyncGenerator
 
-import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.auth.models import User
+from app.auth.tokens import create_access_token
 from app.main import create_app
 from app.db.base import Base
 
@@ -60,12 +60,15 @@ async def client(db_session) -> AsyncGenerator[AsyncClient, None]:
 
 
 @pytest_asyncio.fixture
-async def auth_client(client) -> tuple[AsyncClient, dict]:
+async def auth_client(client, db_session) -> tuple[AsyncClient, dict]:
     """Create authenticated client with test user."""
-    # Register test user
-    response = await client.post(
-        "/api/auth/register",
-        json={"email": f"test_{uuid.uuid4()}@example.com", "password": "TestPassword123!"}
+    user = User(
+        email=f"test_{uuid.uuid4()}@example.com",
+        google_sub=f"sub-{uuid.uuid4()}",
+        password_hash="!",
     )
-    data = response.json()
-    return client, {"Authorization": f"Bearer {data['access_token']}"}
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    access_token = create_access_token(str(user.id))
+    return client, {"Authorization": f"Bearer {access_token}"}

@@ -12,6 +12,17 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-insecure-change-me"
     access_token_ttl_minutes: int = 15
     refresh_token_ttl_days: int = 30
+    google_client_ids: str = ""
+    google_jwks_url: str = "https://www.googleapis.com/oauth2/v3/certs"
+    google_issuers: str = "accounts.google.com,https://accounts.google.com"
+
+    @property
+    def google_client_id_list(self) -> list[str]:
+        return [cid.strip() for cid in self.google_client_ids.split(",") if cid.strip()]
+
+    @property
+    def google_issuer_list(self) -> list[str]:
+        return [iss.strip() for iss in self.google_issuers.split(",") if iss.strip()]
 
 
 settings = Settings()

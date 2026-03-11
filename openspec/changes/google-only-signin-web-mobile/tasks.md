@@ -1,14 +1,14 @@
 ## 1. Backend Google Auth Contract
 
-- [ ] 1.1 Add backend request/response schema for Google token exchange endpoint returning existing `SessionOut` contract
-- [ ] 1.2 Implement server-side Google ID token verification (signature, issuer, audience, expiry) with configuration-driven client IDs
-- [ ] 1.3 Implement `/auth/google` endpoint to resolve or create user by provider identity and issue access/refresh tokens
-- [ ] 1.4 Extend auth domain model/storage to persist provider metadata (at minimum Google `sub`) used as canonical external identity
+- [x] 1.1 Add backend request/response schema for Google token exchange endpoint returning existing `SessionOut` contract
+- [x] 1.2 Implement server-side Google ID token verification (signature, issuer, audience, expiry) with configuration-driven client IDs
+- [x] 1.3 Implement `/auth/google` endpoint to resolve or create user by provider identity and issue access/refresh tokens
+- [x] 1.4 Extend auth domain model/storage to persist provider metadata (at minimum Google `sub`) used as canonical external identity
 
 ## 2. Remove Legacy Credential Auth Paths
 
-- [ ] 2.1 Remove backend `/auth/login` interactive password sign-in behavior
-- [ ] 2.2 Remove backend `/auth/register` interactive password registration behavior
+- [x] 2.1 Remove backend `/auth/login` interactive password sign-in behavior
+- [x] 2.2 Remove backend `/auth/register` interactive password registration behavior
 - [ ] 2.3 Remove backend password hashing/verification code paths that are no longer used by interactive auth endpoints
 - [ ] 2.4 Remove or update API client methods in web and mobile that call legacy credential endpoints
 
@@ -28,7 +28,7 @@
 
 ## 5. Validation, Hard-Cutover, and Documentation
 
-- [ ] 5.1 Add backend tests for valid Google token exchange, invalid token rejection, and no session issuance on failure
-- [ ] 5.2 Add regression tests confirming legacy credential auth endpoints no longer authenticate users
+- [x] 5.1 Add backend tests for valid Google token exchange, invalid token rejection, and no session issuance on failure
+- [x] 5.2 Add regression tests confirming legacy credential auth endpoints no longer authenticate users
 - [ ] 5.3 Add web/mobile tests verifying auth screen only exposes Google Sign-In and no credential inputs
 - [ ] 5.4 Update environment/config docs for Google OAuth client IDs and backend verification settings for web and mobile

@@ -4,6 +4,8 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.auth.models import User
+from app.auth.tokens import create_access_token
 
 class TestRouteCRUD:
     """Test route CRUD operations with PostGIS geometry."""
@@ -134,7 +136,7 @@ class TestRouteCRUD:
 class TestRouteOwnership:
     """Test route ownership enforcement."""
     
-    async def test_cannot_access_other_users_route(self, auth_client, client):
+    async def test_cannot_access_other_users_route(self, auth_client, client, db_session):
         """Test that users cannot access routes they don't own."""
         client1, headers1 = auth_client
         
@@ -150,11 +152,14 @@ class TestRouteOwnership:
         route_id = create_resp.json()["id"]
         
         # Create user 2
-        resp = await client.post(
-            "/api/auth/register",
-            json={"email": f"other_{uuid.uuid4()}@example.com", "password": "TestPassword123!"}
+        user2 = User(
+            email=f"other_{uuid.uuid4()}@example.com",
+            google_sub=f"sub-{uuid.uuid4()}",
+            password_hash="!",
         )
-        headers2 = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+        db_session.add(user2)
+        await db_session.commit()
+        headers2 = {"Authorization": f"Bearer {create_access_token(str(user2.id))}"}
         
         # User 2 should not see route in list
         list_resp = await client.get("/api/routes", headers=headers2)
