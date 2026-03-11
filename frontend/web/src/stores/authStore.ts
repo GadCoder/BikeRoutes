@@ -1,16 +1,18 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "../api/client";
-import type { Session, User } from "../api/types";
+import { ApiError } from "../api/client";
+import type { Session } from "../api/types";
 
 interface AuthState {
   session: Session | null;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
   
   // Actions
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  initialize: () => Promise<void>;
+  signInWithGoogle: (idToken: string) => Promise<void>;
   logout: () => void;
   clearError: () => void;
 }
@@ -20,28 +22,71 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       session: null,
       isLoading: false,
+      isInitialized: false,
       error: null,
 
-      login: async (email: string, password: string) => {
+      initialize: async () => {
+        if (get().isInitialized) return;
+        const existing = get().session;
+        if (!existing) {
+          set({ isInitialized: true });
+          return;
+        }
+
         set({ isLoading: true, error: null });
+        api.setAccessToken(existing.access_token);
         try {
-          const session = await api.login(email, password);
-          api.setAccessToken(session.access_token);
-          set({ session, isLoading: false });
-        } catch (err: any) {
-          set({ error: err.message || "Login failed", isLoading: false });
-          throw err;
+          const user = await api.me();
+          set({
+            session: {
+              ...existing,
+              user,
+            },
+            isInitialized: true,
+            isLoading: false,
+          });
+          return;
+        } catch (err) {
+          const apiErr = err as Partial<ApiError>;
+          if (apiErr?.status !== 401) {
+            set({
+              error: (err as any)?.message || "Failed to restore session",
+              isInitialized: true,
+              isLoading: false,
+            });
+            return;
+          }
+        }
+
+        try {
+          const refreshed = await api.refresh(existing.refresh_token);
+          api.setAccessToken(refreshed.access_token);
+          const user = await api.me();
+          set({
+            session: {
+              ...refreshed,
+              user,
+            },
+            isInitialized: true,
+            isLoading: false,
+            error: null,
+          });
+        } catch {
+          api.setAccessToken(null);
+          set({ session: null, isInitialized: true, isLoading: false, error: null });
         }
       },
 
-      register: async (email: string, password: string) => {
+      signInWithGoogle: async (idToken: string) => {
         set({ isLoading: true, error: null });
         try {
-          const session = await api.register(email, password);
+          const session = await api.googleExchange(idToken);
           api.setAccessToken(session.access_token);
-          set({ session, isLoading: false });
+          const user = await api.me();
+          const normalizedSession: Session = { ...session, user };
+          set({ session: normalizedSession, isLoading: false });
         } catch (err: any) {
-          set({ error: err.message || "Registration failed", isLoading: false });
+          set({ error: err.message || "Google sign-in failed", isLoading: false });
           throw err;
         }
       },
@@ -59,6 +104,9 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         if (state?.session?.access_token) {
           api.setAccessToken(state.session.access_token);
+        }
+        if (state) {
+          state.isInitialized = false;
         }
       },
     }

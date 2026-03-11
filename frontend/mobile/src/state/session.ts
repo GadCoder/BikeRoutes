@@ -1,5 +1,10 @@
 import type { ApiError } from "../api/http";
-import { login, me, refresh, register, type SessionOut, type UserOut } from "../api/auth";
+import { googleExchange, me, refresh, type SessionOut, type UserOut } from "../api/auth";
+import {
+  googleSignInSetupMessage,
+  isGoogleSignInConfigured as isGoogleSignInClientConfigured,
+  requestGoogleIdToken,
+} from "../auth/google";
 import { clearRefreshToken, getRefreshToken, setRefreshToken } from "../storage/refreshTokenStore";
 
 export type Session = {
@@ -60,23 +65,9 @@ export async function loadSession(): Promise<Session | null> {
   }
 }
 
-export async function signInWithEmailPassword(args: {
-  email: string;
-  password: string;
-}): Promise<Session> {
-  const email = args.email.trim().toLowerCase();
-  const out = await login({ email, password: args.password });
-  const s = toSession(out);
-  await persistSession(s);
-  return s;
-}
-
-export async function registerWithEmailPassword(args: {
-  email: string;
-  password: string;
-}): Promise<Session> {
-  const email = args.email.trim().toLowerCase();
-  const out = await register({ email, password: args.password });
+export async function signInWithGoogle(): Promise<Session> {
+  const idToken = await requestGoogleIdToken();
+  const out = await googleExchange({ idToken });
   const s = toSession(out);
   await persistSession(s);
   return s;
@@ -129,6 +120,9 @@ export async function withAuthRetry<T>(fn: (accessToken: string) => Promise<T>):
 }
 
 export function isGoogleSignInConfigured(): boolean {
-  // Keep hidden unless explicitly configured (Google sign-in not wired yet).
-  return Boolean((process.env as any)?.EXPO_PUBLIC_GOOGLE_CLIENT_ID);
+  return isGoogleSignInClientConfigured();
+}
+
+export function getGoogleSignInSetupMessage(): string {
+  return googleSignInSetupMessage();
 }

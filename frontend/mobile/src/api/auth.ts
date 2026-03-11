@@ -12,17 +12,10 @@ export interface UserOut {
   email: string;
 }
 
-export async function apiLogin(email: string, password: string): Promise<SessionOut> {
-  return apiFetch<SessionOut>("/auth/login", {
+export async function apiGoogleExchange(idToken: string): Promise<SessionOut> {
+  return apiFetch<SessionOut>("/auth/google", {
     method: "POST",
-    json: { email, password },
-  });
-}
-
-export async function apiRegister(email: string, password: string): Promise<SessionOut> {
-  return apiFetch<SessionOut>("/auth/register", {
-    method: "POST",
-    json: { email, password },
+    json: { id_token: idToken },
   });
 }
 
@@ -38,12 +31,8 @@ export async function apiMe(accessToken: string): Promise<UserOut> {
 }
 
 // Convenience wrappers used by `src/state/session.ts` (object-arg style).
-export function login(args: { email: string; password: string }): Promise<SessionOut> {
-  return apiLogin(args.email, args.password);
-}
-
-export function register(args: { email: string; password: string }): Promise<SessionOut> {
-  return apiRegister(args.email, args.password);
+export function googleExchange(args: { idToken: string }): Promise<SessionOut> {
+  return apiGoogleExchange(args.idToken);
 }
 
 export function refresh(args: { refreshToken: string }): Promise<SessionOut> {

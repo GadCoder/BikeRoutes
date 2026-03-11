@@ -14,8 +14,12 @@ type View =
 
 export default function App() {
   const [view, setView] = useState<View>({ kind: "auth" });
-  const { session, logout } = useAuthStore();
+  const { session, logout, initialize, isInitialized } = useAuthStore();
   const { deleteRoute } = useRoutesStore();
+
+  useEffect(() => {
+    void initialize();
+  }, [initialize]);
 
   // Redirect to list when authenticated
   useEffect(() => {
@@ -44,6 +48,14 @@ export default function App() {
     await deleteRoute(id);
     setView({ kind: "list" });
   };
+
+  if (!isInitialized) {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        Restoring session...
+      </div>
+    );
+  }
 
   // Render current view
   if (view.kind === "auth") {

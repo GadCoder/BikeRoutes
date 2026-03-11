@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { BootSplashScreen } from "../screens/BootSplashScreen";
 import { AuthedHomeScreen } from "../screens/Home/AuthedHomeScreen";
-import { RegisterScreen } from "../screens/Auth/RegisterScreen";
 import { SignInScreen } from "../screens/Auth/SignInScreen";
 import { EditorScreen } from "../screens/Editor/EditorScreen";
 import { MyRoutesScreen } from "../screens/Routes/MyRoutesScreen";
@@ -11,18 +10,14 @@ import { Alert, View } from "react-native";
 import {
   loadSession,
   onSessionChange,
-  registerWithEmailPassword,
-  signInWithEmailPassword,
+  signInWithGoogle,
   signOut,
   type Session,
 } from "../state/session";
 
-type AuthRoute = "sign_in" | "register";
-
 export function AppRouter() {
   const [booting, setBooting] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
-  const [authRoute, setAuthRoute] = useState<AuthRoute>("sign_in");
 
   const [tab, setTab] = useState<BottomTab>("routes");
   const [routesScreen, setRoutesScreen] = useState<"list" | "details">("list");
@@ -53,25 +48,12 @@ export function AppRouter() {
   if (booting) return <BootSplashScreen />;
 
   if (!session) {
-    if (authRoute === "register") {
-      return (
-        <RegisterScreen
-          onRegister={async (args) => {
-            const s = await registerWithEmailPassword(args);
-            setSession(s);
-          }}
-          onBackToSignIn={() => setAuthRoute("sign_in")}
-        />
-      );
-    }
-
     return (
       <SignInScreen
-        onSignIn={async (args) => {
-          const s = await signInWithEmailPassword(args);
+        onGoogleSignIn={async () => {
+          const s = await signInWithGoogle();
           setSession(s);
         }}
-        onCreateAccount={() => setAuthRoute("register")}
       />
     );
   }
@@ -133,7 +115,6 @@ export function AppRouter() {
             onSignOut={async () => {
               await signOut();
               setSession(null);
-              setAuthRoute("sign_in");
             }}
           />
         )}

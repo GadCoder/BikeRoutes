@@ -3,8 +3,7 @@
 Base URL: `/api`
 
 ## Auth
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- `POST /api/auth/google`
 - `POST /api/auth/refresh`
 - `GET /api/auth/me`
 

@@ -40,3 +40,10 @@ To switch to a real MapLibre React Native engine later:
 5. Replace `frontend/mobile/src/components/map/StubMap.tsx` with a MapLibre-backed component that emits `GeoJSONPosition` on tap and renders the `GeoJSONLineStringGeometry` draft.
 
 The geometry contract used by the editor is GeoJSON `LineString` (`type: "LineString"`, `coordinates: [lon, lat][]`) to match backend expectations.
+
+## Google-only auth env setup
+
+- Backend expects `GOOGLE_CLIENT_IDS` to be configured (comma-separated if both web/mobile client IDs are accepted).
+- Web auth screen requires `VITE_GOOGLE_CLIENT_ID`.
+- Mobile auth flow requires `EXPO_PUBLIC_GOOGLE_CLIENT_ID`.
+- Mobile currently includes a Google sign-in integration hook and backend exchange path; the platform SDK handler must be wired in app code before Google sign-in can complete.

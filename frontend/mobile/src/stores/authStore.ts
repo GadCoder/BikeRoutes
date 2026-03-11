@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
-import { apiLogin, apiRegister, apiRefresh, apiMe } from "../api/auth";
-import type { SessionOut, UserOut } from "../api/auth";
+import { apiGoogleExchange, apiMe } from "../api/auth";
+import { requestGoogleIdToken } from "../auth/google";
+import type { SessionOut } from "../api/auth";
 
 interface User {
   id: string;
@@ -22,8 +23,7 @@ interface AuthState {
   
   // Actions
   initialize: () => Promise<void>;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -54,28 +54,16 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     }
   },
 
-  login: async (email: string, password: string) => {
+  signInWithGoogle: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiLogin(email, password);
+      const idToken = await requestGoogleIdToken();
+      const response = await apiGoogleExchange(idToken);
       const session = toSession(response);
       await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
       set({ session, isLoading: false });
     } catch (err: any) {
-      set({ error: err.message || "Login failed", isLoading: false });
-      throw err;
-    }
-  },
-
-  register: async (email: string, password: string) => {
-    set({ isLoading: true, error: null });
-    try {
-      const response = await apiRegister(email, password);
-      const session = toSession(response);
-      await SecureStore.setItemAsync(SESSION_KEY, JSON.stringify(session));
-      set({ session, isLoading: false });
-    } catch (err: any) {
-      set({ error: err.message || "Registration failed", isLoading: false });
+      set({ error: err.message || "Google sign-in failed", isLoading: false });
       throw err;
     }
   },

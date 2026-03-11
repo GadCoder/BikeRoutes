@@ -17,12 +17,19 @@ export const client = new SharedApiClient(config);
 export { SharedApiClient as ApiClient };
 
 // Auth API
-export async function login(email: string, password: string): Promise<Session> {
-  return client.request<Session>("/auth/login", { method: "POST", json: { email, password } });
+export async function googleExchange(idToken: string): Promise<Session> {
+  return client.request<Session>("/auth/google", { method: "POST", json: { id_token: idToken } });
 }
 
-export async function register(email: string, password: string): Promise<Session> {
-  return client.request<Session>("/auth/register", { method: "POST", json: { email, password } });
+export async function refresh(refreshToken: string): Promise<Session> {
+  return client.request<Session>("/auth/refresh", {
+    method: "POST",
+    json: { refresh_token: refreshToken },
+  });
+}
+
+export async function me(): Promise<User> {
+  return client.request<User>("/auth/me");
 }
 
 // Routes API
@@ -49,8 +56,9 @@ export async function deleteRoute(id: string): Promise<void> {
 // Legacy-friendly facade used by the stores/UI.
 export const api = {
   setAccessToken,
-  login,
-  register,
+  googleExchange,
+  refresh,
+  me,
   listRoutes,
   getRoute,
   createRoute,

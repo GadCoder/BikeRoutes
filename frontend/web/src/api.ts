@@ -51,12 +51,22 @@ async function apiFetch<T>(
   return (await res.json()) as T;
 }
 
-export async function register(args: { email: string; password: string }): Promise<SessionOut> {
-  return apiFetch<SessionOut>("/auth/register", { method: "POST", json: args });
+export async function googleExchange(args: { idToken: string }): Promise<SessionOut> {
+  return apiFetch<SessionOut>("/auth/google", {
+    method: "POST",
+    json: { id_token: args.idToken },
+  });
 }
 
-export async function login(args: { email: string; password: string }): Promise<SessionOut> {
-  return apiFetch<SessionOut>("/auth/login", { method: "POST", json: args });
+export async function refresh(args: { refreshToken: string }): Promise<SessionOut> {
+  return apiFetch<SessionOut>("/auth/refresh", {
+    method: "POST",
+    json: { refresh_token: args.refreshToken },
+  });
+}
+
+export async function me(args: { accessToken: string }): Promise<UserOut> {
+  return apiFetch<UserOut>("/auth/me", { accessToken: args.accessToken });
 }
 
 export async function listRoutes(args: { accessToken: string }): Promise<RouteFeature[]> {

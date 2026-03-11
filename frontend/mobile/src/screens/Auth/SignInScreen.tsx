@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -9,28 +7,25 @@ import {
 } from "react-native";
 import { AppIcon } from "../../components/AppIcon";
 import { Button } from "../../components/Button";
-import { DividerLabel } from "../../components/Divider";
-import { TextField } from "../../components/TextField";
 import { WaveBackground } from "../../components/WaveBackground";
 import { tokens } from "../../theme/tokens";
-import { isGoogleSignInConfigured } from "../../state/session";
+import { getGoogleSignInSetupMessage, isGoogleSignInConfigured } from "../../state/session";
 
 export function SignInScreen(props: {
-  onSignIn: (args: { email: string; password: string }) => Promise<void>;
-  onCreateAccount: () => void;
+  onGoogleSignIn: () => Promise<void>;
 }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const canSubmit = useMemo(() => email.trim().length > 2 && password.length > 0, [email, password]);
+  const [error, setError] = useState<string | null>(null);
   const showGoogle = isGoogleSignInConfigured();
 
-  async function submit() {
-    if (!canSubmit || submitting) return;
+  async function submitGoogle() {
+    if (submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
-      await props.onSignIn({ email, password });
+      await props.onGoogleSignIn();
+    } catch (err: any) {
+      setError(err?.message ?? "Google sign-in failed");
     } finally {
       setSubmitting(false);
     }
@@ -39,67 +34,29 @@ export function SignInScreen(props: {
   return (
     <SafeAreaView style={styles.safe}>
       <WaveBackground />
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.root}>
         <View style={styles.top}>
           <AppIcon size={80} />
           <Text style={styles.h1}>Sign In</Text>
-          <Text style={styles.sub}>Welcome back! Ready for your next ride?</Text>
+          <Text style={styles.sub}>Continue with your Google account.</Text>
         </View>
 
         <View style={styles.form}>
-          <TextField
-            label="Email Address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="rider@example.com"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            autoCapitalize="none"
+          {!!error && <Text style={styles.error}>{error}</Text>}
+          <Button
+            variant="secondary"
+            label={submitting ? "Signing In..." : "Continue with Google"}
+            onPress={submitGoogle}
+            disabled={submitting || !showGoogle}
           />
-          <TextField
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            secureTextEntry
-            textContentType="password"
-          />
-
-          <View style={styles.cta}>
-            <Button
-              label={submitting ? "Signing In..." : "Sign In"}
-              onPress={submit}
-              disabled={!canSubmit || submitting}
-              rightIcon={<Text style={styles.arrow}>{"\u2192"}</Text>}
-            />
-          </View>
-
-          {showGoogle ? (
-            <>
-              <DividerLabel label="OR CONNECT WITH" />
-              <View style={styles.socialRow}>
-                <Button
-                  variant="secondary"
-                  label="Continue with Google"
-                  onPress={() => {}}
-                />
-              </View>
-            </>
-          ) : null}
-        </View>
-
-        <View style={styles.footer}>
+          {!showGoogle && (
+            <Text style={styles.setup}>{getGoogleSignInSetupMessage()}</Text>
+          )}
           <Text style={styles.footerText}>
-            Don't have an account?{" "}
-            <Text accessibilityRole="link" onPress={props.onCreateAccount} style={styles.footerLink}>
-              Create Account
-            </Text>
+            Email/password sign-in and registration are no longer available.
           </Text>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -132,30 +89,26 @@ const styles = StyleSheet.create({
   },
   form: {
     marginTop: tokens.space.xl,
+    gap: tokens.space.md,
   },
-  cta: {
-    marginTop: tokens.space.lg,
+  error: {
+    fontSize: tokens.font.size.sm,
+    color: "#b42318",
+    backgroundColor: "#fee4e2",
+    borderWidth: 1,
+    borderColor: "#fda29b",
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.sm,
+    borderRadius: tokens.radius.md,
   },
-  arrow: {
-    color: tokens.color.onPrimary,
-    fontSize: 18,
-    fontWeight: tokens.font.weight.bold,
-  },
-  socialRow: {
-    marginTop: tokens.space.md,
-  },
-  footer: {
-    marginTop: "auto",
-    paddingTop: tokens.space.xl,
-    paddingBottom: tokens.space.xl,
-    alignItems: "center",
-  },
-  footerText: {
+  setup: {
     fontSize: tokens.font.size.sm,
     color: tokens.color.textSecondary,
+    opacity: 0.9,
   },
-  footerLink: {
-    color: tokens.color.primary,
-    fontWeight: tokens.font.weight.bold,
+  footerText: {
+    marginTop: tokens.space.sm,
+    fontSize: tokens.font.size.sm,
+    color: tokens.color.textSecondary,
   },
 });
